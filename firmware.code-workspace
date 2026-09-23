@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "esp32_motor_test",
+			"path": "esp32_motor_test"
+		}
+	],
+	"settings": {}
+}
