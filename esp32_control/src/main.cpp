@@ -157,9 +157,34 @@
  *
  * Velocidad resultante a u = 1: 0,38 m/s (rueda de 60 mm), o sea 7,6 cm
  * entre frames a 5 FPS. Dentro del presupuesto del lazo de vision.
- * Si se quisiera exactamente 0,30 m/s: 207 / 286. */
-#define PWM_TOP_LEFT 238
-#define PWM_TOP_RIGHT 352
+ * Si se quisiera exactamente 0,30 m/s: 207 / 286.
+ *
+ * !! 2026-09-30 - RECALIBRADO EN EL PISO. Todo lo de arriba se midio con
+ * las RUEDAS AL AIRE, y en el piso la rueda izquierda se calaba a
+ * cualquier comando: pitaba y no giraba, ni siquiera con v_ang = 100.
+ * Es la rueda de reduccion ~2,1 veces menor, o sea la que da la mitad de
+ * par en la rueda, y la calibracion al aire le daba ademas el MENOR duty
+ * (techo 23 % contra 34 %). Sin carga alcanzaba; con el peso del robot no.
+ *
+ * Medido con el robot apoyado, pivoteando sobre la otra rueda (modo C):
+ *
+ *   rueda | arranca desde parado | sigue girando hasta | al aire
+ *   izq   |   entre 300 y 350    |   entre 260 y 290   |  ~106
+ *   der   |   entre 200 y 250    |   entre 190 y 220   |   ~98
+ *
+ * Modelo: la carga SUMA un escalon de duty (hace falta corriente para dar
+ * par) y NO cambia la pendiente (la velocidad la fija la fuerza
+ * contraelectromotriz). Por eso piso y techo suben LA MISMA cantidad en
+ * cada rueda, y se conserva el span de la calibracion al aire, que es el
+ * que iguala las velocidades: izquierda 113, derecha 240.
+ *
+ *   izq: 125..238 -> 300..413   (+175)
+ *   der: 112..352 -> 230..470   (+118)
+ *
+ * Los valores al aire quedan en este comentario: son los correctos para
+ * el banco, y el error fue usarlos fuera de el. */
+#define PWM_TOP_LEFT 413
+#define PWM_TOP_RIGHT 470
 
 /* Piso de cada rueda. Los dos motores difieren 2:1 en friccion de
  * arranque (HARDWARE.md seccion 0.4): la derecha arranca en 32 y la
@@ -201,8 +226,11 @@
  * Rango util resultante: 0,091 a 0,380 m/s, o sea 4,2:1.
  * !! u > 0 garantiza al menos 0,091 m/s: NO hay arranque suave desde
  * cero. Para parar hay que mandar exactamente 0. */
-#define PWM_MIN_LEFT 125  /* calado medido ~106, margen 19 */
-#define PWM_MIN_RIGHT 112 /* calado medido ~98,  margen 14 */
+/* Al aire eran 125 / 112 (calado ~106 / ~98). En el piso, ver el
+ * recalibrado del 2026-09-30 junto a PWM_TOP_*: calado entre 260-290 y
+ * 190-220, medido pivoteando, que es mas exigente que andar derecho. */
+#define PWM_MIN_LEFT 300  /* en el piso: gira a 290, se para a 260 */
+#define PWM_MIN_RIGHT 230 /* en el piso: gira a 220, se para a 190 */
 
 /* Pulso de arranque (HARDWARE.md seccion 0.4, palanca C). Al pasar de
  * reposo a movimiento se aplica el umbral estatico durante unos ms para
@@ -227,9 +255,14 @@
  * del techo del intervalo, sobre todo el de la derecha: con 128 el pulso
  * no habria despegado la rueda. Se toma el techo del intervalo con algo
  * de margen. Bajarlos despues si el tiron al arrancar molesta. */
-#define PWM_BREAKAWAY_LEFT 290
-#define PWM_BREAKAWAY_RIGHT 220
-#define BREAKAWAY_MS 80
+/* 2026-09-30, en el piso: al aire eran 290 / 220 durante 80 ms. Apoyado,
+ * la izquierda arranca entre 300 y 350 y la derecha entre 200 y 250; se
+ * toma el techo con margen. Y el pulso se alarga a 150 ms: con el peso
+ * del robot la rueda tarda mas en tomar velocidad, y como el piso quedo
+ * cerca del calado, si el pulso termina antes se vuelve a plantar. */
+#define PWM_BREAKAWAY_LEFT 380
+#define PWM_BREAKAWAY_RIGHT 280
+#define BREAKAWAY_MS 150
 
 /* ==================================================================
  * 3. Tiempos
