@@ -1,0 +1,237 @@
+% =============================================================================
+\section{Arquitectura}
+% =============================================================================
+
+\begin{frame}{Dos niveles, con una frontera clara}
+  \centering
+  \begin{tikzpicture}[font=\footnotesize, >={Stealth[length=2mm]},
+      b/.style={draw, rounded corners=2pt, minimum height=0.75cm, align=center,
+                line width=0.8pt, text width=2.25cm, inner sep=2pt}]
+    % Pi
+    \node[b, draw=azul, fill=azul!8] (cam) {Cámara\\\cod{vision.Camara}};
+    \node[b, draw=azul, fill=azul!8, right=0.35cm of cam] (yolo) {YOLOv8n\\\cod{vision.Detector}};
+    \node[b, draw=azul, fill=azul!8, right=0.35cm of yolo] (conf) {Confirmación\\temporal};
+    \node[b, draw=azul, fill=azul!8, right=0.35cm of conf] (est) {Máquina de\\estados};
+    \node[b, draw=azul, fill=azul!8, right=0.35cm of est] (ctl) {Ley de\\control};
+    \node[b, draw=azul, fill=azul!8, below=0.55cm of ctl] (enl) {Enlace serie\\\cod{enlace_esp32}};
+    \node[b, draw=gris, fill=gris!8, below=0.55cm of conf] (reg) {Registro\\CSV + JSON};
+    \begin{scope}[on background layer]
+      \node[draw=azul, dashed, rounded corners=4pt, fit=(cam)(ctl)(enl)(reg), inner sep=7pt,
+            label={[azul]above:\textbf{Raspberry Pi 5 --- alto nivel, $\sim$11 ciclos por segundo}}] (pibox) {};
+    \end{scope}
+    % ESP32
+    \node[b, draw=naranja, fill=naranja!8, below=2.3cm of enl] (par) {Parser\\de líneas};
+    \node[b, draw=naranja, fill=naranja!8, left=0.35cm of par] (mix) {Mezcla y\\zona muerta};
+    \node[b, draw=naranja, fill=naranja!8, left=0.35cm of mix] (pwm) {PWM\\10 bits};
+    \node[b, draw=gris, fill=gris!8, left=0.35cm of pwm] (l298) {L298N};
+    \node[b, draw=gris, fill=gris!8, left=0.35cm of l298] (mot) {Motores};
+    \node[b, draw=naranja, fill=naranja!8, above=0.3cm of mix] (wd) {Watchdog\\500 ms};
+    \begin{scope}[on background layer]
+      \node[draw=naranja, dashed, rounded corners=4pt, fit=(par)(pwm)(wd), inner sep=7pt,
+            label={[naranja]below:\textbf{ESP32 --- bajo nivel, lazo de 100 Hz}}] (espbox) {};
+    \end{scope}
+    \draw[->] (cam) -- (yolo); \draw[->] (yolo) -- (conf); \draw[->] (conf) -- (est);
+    \draw[->] (est) -- (ctl); \draw[->] (ctl) -- (enl); \draw[->] (est.south) |- (reg.east);
+    \draw[->, line width=1pt] (enl) -- node[left, pos=0.2]{\cod{M,v_lin,v_ang} por USB-serie} (par);
+    \draw[->] (par) -- (mix); \draw[->] (mix) -- (pwm); \draw[->] (pwm) -- (l298); \draw[->] (l298) -- (mot);
+    \draw[->] (wd) -- (mix);
+  \end{tikzpicture}
+
+  \vspace{0.1em}
+  {\footnotesize \textbf{El principio:} el Pi nunca toca un PWM y el ESP32 nunca
+  decide un comportamiento. Cada nivel se depura por separado.}
+\end{frame}
+
+\begin{frame}{Qué sabe cada nivel, y qué ignora a propósito}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Raspberry Pi: la intención}
+        \begin{itemize}
+          \item Sabe qué hay en la imagen y qué conviene hacer.
+          \item Habla en \textbf{intención normalizada}: avanzar y girar entre
+                $-100$ y $100$.
+          \item \textbf{Ignora} cuántas cuentas de PWM hacen falta, que las
+                ruedas son distintas y que existe un puente H.
+          \item No es de tiempo real: un ciclo tarda $\sim$90 ms y a veces más.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{ESP32: el hardware}
+        \begin{itemize}
+          \item Sabe traducir intención a duty, rueda por rueda, con la
+                calibración medida.
+          \item Garantiza que el robot \textbf{frena solo} si se queda sin
+                órdenes.
+          \item \textbf{Ignora} qué es un oso o una mochila, y en qué estado
+                está el comportamiento.
+          \item Sí es de tiempo real: su lazo corre cada 10 ms.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.5em}
+  \begin{exampleblock}{Por qué la zona muerta se compensa en el ESP32}
+    {\small Los pisos y techos de cada rueda están en \textbf{cuentas de PWM}, que es
+    justo lo que el protocolo abstrae. Si se recalibra o se cambia un motor, se
+    toca el firmware y \textbf{el Pi no se entera}. Fue lo que pasó el 30 de
+    septiembre: se recalibró en el piso sin cambiar una línea de Python.}
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{La vida de un frame: de la foto a las ruedas}
+  \centering
+  \begin{tikzpicture}[font=\scriptsize, >={Stealth[length=1.8mm]},
+      p/.style={draw, rounded corners=2pt, minimum height=1.0cm, align=center,
+                line width=0.8pt, text width=1.7cm, inner sep=2pt}]
+    \node[p, draw=azul, fill=azul!8] (a) {La cámara\\expone};
+    \node[p, draw=azul, fill=azul!8, right=0.28cm of a] (b) {\cod{cam.leer()}\\saca el frame};
+    \node[p, draw=azul, fill=azul!8, right=0.28cm of b] (c) {\cod{franjas()}\\salud de la imagen};
+    \node[p, draw=azul, fill=azul!8, right=0.28cm of c] (d) {\cod{detectar()}\\YOLOv8n};
+    \node[p, draw=azul, fill=azul!8, right=0.28cm of d] (e) {\cod{Confirmador}\\3 seguidos};
+    \node[p, draw=azul, fill=azul!8, right=0.28cm of e] (f) {\cod{Maquina.paso()}\\decide};
+    \node[p, draw=azul, fill=azul!8, right=0.28cm of f] (g) {\cod{esp.mover()}\\manda \cod{M}};
+    \foreach \x/\y in {a/b,b/c,c/d,d/e,e/f,f/g} \draw[->] (\x) -- (\y);
+    \node[below=0.15cm of a]  {36--64 ms};
+    \node[below=0.15cm of b]  {0,6 ms};
+    \node[below=0.15cm of c]  {1,7 ms};
+    \node[below=0.15cm of d]  {\textbf{88 ms}};
+    \node[below=0.15cm of e]  {$<$ 1 ms};
+    \node[below=0.15cm of f]  {$<$ 1 ms};
+    \node[below=0.15cm of g]  {en el acto};
+  \end{tikzpicture}
+
+  \vspace{0.5em}
+  {\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Lo que cuesta}
+        Casi todo el ciclo es \textbf{la red}: 88 de $\sim$90 ms. La máquina de
+        estados y el enlace cuestan alrededor del 1 \%. Por eso el tamaño de
+        inferencia es la única palanca real del FPS.
+      \end{block}
+      \begin{block}{Después del comando}
+        \cod{registro.fila()} escribe una línea del CSV y, si se pidió
+        \cod{--grabar}, el frame anotado va al video.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{alertblock}{La latencia que no se ve}
+        Sacar el frame de la cola tarda 0,6 ms, pero ese frame \textbf{ya
+        tiene 36 a 64 ms de edad}. De foto a decisión pasan $\sim$150 ms; con
+        el retardo de los motores, $\sim$0,25 s. A 0,25 m/s son unos 6 cm
+        ``a ciegas''.
+      \end{alertblock}
+      \begin{block}{El orden importa}
+        La salud de la imagen se mide \textbf{antes} de dibujar las cajas
+        encima.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{Tres relojes distintos, desacoplados}
+  \relax{\footnotesize
+  \begin{tabular}{L{3.1cm}L{2.3cm}L{8.4cm}}
+    \toprule
+    \textbf{Quién} & \textbf{Cadencia} & \textbf{Qué hace a ese ritmo} \\
+    \midrule
+    Lazo de visión (Pi) & $\sim$11 Hz, irregular &
+      Un ciclo por frame: detectar, decidir, fijar el comando. Si un frame
+      tarda, el ciclo tarda. \\[2pt]
+    Latido del enlace (Pi, hilo aparte) & 10 Hz, regular &
+      Repite el último comando al ESP32 \textbf{mientras siga fresco}. Si el
+      comando \emph{cambia}, se manda en el acto sin esperar al latido. \\[2pt]
+    Lector del enlace (Pi, hilo aparte) & lo que llegue &
+      Lee la telemetría \cod{D,...} que el ESP32 manda a 20 Hz. \\[2pt]
+    Lazo de control (ESP32) & 100 Hz &
+      Revisa el watchdog y aplica el duty de cada rueda. \\[2pt]
+    Telemetría (ESP32) & 20 Hz &
+      Manda \cod{D,dist,enc_izq,enc_der}. Hoy siempre \cod{D,-1,0,0}. \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.6em}
+  \begin{block}{Por qué hay un latido}
+    {\small El ESP32 frena si pasa 500 ms sin un comando. El lazo de visión es
+    irregular: un frame lento haría frenar el robot en medio de una maniobra.
+    El latido desacopla las dos cadencias.}
+  \end{block}
+  \begin{alertblock}{Y por qué el latido no puede ser ingenuo}
+    {\small Repetir el último comando \emph{para siempre} anularía el watchdog: si el
+    lazo se cuelga, el hilo del latido seguiría diciendo ``andá''. Por eso sólo
+    repite comandos con menos de 0,40 s de edad (\cod{VIGENCIA_COMANDO_S}).}
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Las dos reglas que ordenan el código}
+  \begin{block}{Regla 1 --- Todos los parámetros viven en \cod{config.py}}
+    Nada de constantes sueltas en el código. Cada valor lleva al lado
+    \textbf{de dónde salió}: medido (con fecha), calculado o pendiente. Los
+    días de piso se tocan muchas veces, y un número sin su contexto se usa mal.
+  \end{block}
+
+  \begin{block}{Regla 2 --- Las capas que deciden no tocan hardware}
+    \begin{columns}[T,onlytextwidth]
+      \begin{column}{0.48\textwidth}
+        \textbf{Deciden} (funciones puras, reciben el tiempo por argumento):
+        \begin{itemize}
+          \item \cod{control.py}
+          \item \cod{estados.py}
+          \item \cod{vision.Confirmador}
+        \end{itemize}
+      \end{column}
+      \begin{column}{0.48\textwidth}
+        \textbf{Hablan con el mundo}:
+        \begin{itemize}
+          \item \cod{vision.Camara}, \cod{vision.Detector}
+          \item \cod{enlace_esp32.py}
+          \item \cod{main.py} (el cableado)
+        \end{itemize}
+      \end{column}
+    \end{columns}
+  \end{block}
+
+  \begin{exampleblock}{Lo que eso compra}
+    {\small El comportamiento entero se verifica \textbf{en la PC}, sin cámara, sin
+    ESP32 y sin robot (\cod{prueba_estados.py}, 79 verificaciones), y se puede
+    correr contra un robot simulado (\cod{simular_piso.py}). Así se encontró
+    el bucle de huidas antes de que hubiera ruedas girando.}
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Qué pasa cuando algo falla}
+  \relax{\footnotesize
+  \begin{tabular}{L{4.0cm}L{5.0cm}L{4.8cm}}
+    \toprule
+    \textbf{Falla} & \textbf{Quién reacciona} & \textbf{Resultado} \\
+    \midrule
+    El lazo de visión se cuelga (el programa sigue vivo) &
+      El latido ve que el comando tiene más de 0,40 s y manda \cod{M,0,0} &
+      Frena en menos de medio segundo \\[2pt]
+    El programa muere, se corta el SSH o se desconecta el USB &
+      El watchdog del ESP32: 500 ms sin \cod{M} &
+      Freno activo 200 ms, después rueda libre \\[2pt]
+    La cámara no entrega un frame &
+      \cod{main.py} corta el lazo y sale por el camino normal &
+      Frena al salir \\[2pt]
+    Ctrl+C &
+      Baja una bandera; el lazo termina su ciclo y sale del \cod{with Enlace} &
+      Frena, cierra el CSV y el video \\[2pt]
+    Una detección aislada falsa &
+      El \cod{Confirmador} pide 3 frames seguidos &
+      A lo sumo una pausa de un frame \\[2pt]
+    La imagen llega rota &
+      Nadie reacciona: \ojo{sólo se registra} (columna \cod{franjas}) &
+      El robot queda ``ciego'' y sigue buscando \\[2pt]
+    Un obstáculo en el camino &
+      \ojo{Nadie}: no hay ultrasónico &
+      Choca. Área despejada y alguien cerca \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.4em}
+  {\footnotesize El corte que siempre funciona es físico: \textbf{sacar el
+  conector de 12 V} de la UPS.}
+\end{frame}

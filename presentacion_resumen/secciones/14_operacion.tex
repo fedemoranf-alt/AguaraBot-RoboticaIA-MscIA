@@ -1,0 +1,280 @@
+% =============================================================================
+\section{Operación, estado y pendientes}
+% =============================================================================
+
+\begin{frame}{Cómo se opera, en siete pasos}
+  \begin{enumerate}
+    \item \textbf{Armar.} Cargador \hacia{} Pi por \textbf{USB-A}, sin
+          enchufar a la pared. Webcam \textbf{firme} en el USB azul de abajo,
+          ESP32 en el negro de abajo. UPS de 12 V \textbf{desenchufada}.
+          Notebook y Pi en el mismo hotspot.
+    \item \textbf{Entrar.} Desde PowerShell, en la carpeta del proyecto:
+          \texttt{.\textbackslash scripts\_pi\textbackslash entrar.cmd} (busca
+          el Pi y abre la sesión).
+    \item \textbf{Chequear.} \cod{bash ~/TPF/scripts_pi/demo.sh chequeo}: tiene
+          que terminar en \textbf{LISTO}.
+    \item \textbf{Medir la imagen y el sensor.} \cod{demo.sh imagen}:
+          \textbf{imagen SANA}. \cod{demo.sh sonar}: una distancia creíble, no
+          \textbf{SIN LECTURA}.
+    \item \textbf{Mirar.} \cod{demo.sh ver} con el oso a 1 m: \cod{teddy bear}.
+          Con la mochila: \cod{backpack}. Y \cod{demo.sh fondo} sin ninguno.
+    \item \textbf{Correr.} Enchufar los 12 V, robot en el piso, y
+          \cod{demo.sh correr 60 "nota"} (o \cod{grabar}, con video). Tarda 10
+          a 15 s en arrancar; durante la cuenta, sacar las manos.
+    \item \textbf{Parar.} Ctrl+C. Emergencia: sacar los 12 V, no el Pi.
+  \end{enumerate}
+
+  \vspace{0.3em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Al terminar}
+        {\footnotesize Sacar los 12 V, traer el video con
+        \cod{traer_corrida.cmd -Video}, \cod{demo.sh apagar}, y esperar a que
+        el LED verde deje de parpadear.}
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{El manual para hacerlo sin ayuda}
+        {\footnotesize \cod{GUIA_PRESENTACION.md} y su PDF (12 páginas): cada paso
+        con lo que tiene que salir, cómo leer la pantalla, problemas, ajustes
+        con vuelta atrás y plan B.}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Conectarse al Pi y trabajar con él}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.56\textwidth}
+\scriptsize
+\textbf{Entrar}
+\begin{verbatim}
+.\scripts_pi\entrar.cmd                  # lo busca y entra
+.\scripts_pi\entrar.cmd -Ip 192.168.43.57      # con la IP
+ssh -i ~/.ssh/id_ed25519_pi admin@IP     # a mano
+\end{verbatim}
+\textbf{Copiar cambios de la PC al Pi, y traer resultados}
+\begin{verbatim}
+.\scripts_pi\provisionar_pi.cmd          # copia y verifica alla
+.\scripts_pi\traer_corrida.cmd -Video    # registros y video
+\end{verbatim}
+\textbf{En el Pi, a mano}
+\begin{verbatim}
+cd ~/TPF/src && source ../.venv/bin/activate
+python prueba_estados.py                 # las 60, todas "ok"
+python main.py --simular --espera 0 --duracion 10
+python analizar_corrida.py ../logs/corrida_*.csv
+\end{verbatim}
+\textbf{Una corrida de prueba con video y voltaje}
+\begin{verbatim}
+cd ~/TPF/scripts_pi/piso
+GRABAR=1 bash corrida_piso.sh etiqueta 30 "nota" KP_ANG=0.4
+\end{verbatim}
+\end{column}
+\begin{column}{0.42\textwidth}
+\footnotesize
+\begin{block}{El ciclo de trabajo}
+  \begin{enumerate}
+    \item Editar en la PC.
+    \item Correr \verb|prueba_estados.py| en la PC.
+    \item Copiar al Pi y correrla allá.
+    \item Comparar que el código sea el mismo en los dos lados.
+    \item Probar sin motores (\verb|--simular|, \verb|demo.sh ver|).
+    \item Recién entonces, la corrida.
+  \end{enumerate}
+\end{block}
+\begin{alertblock}{La red}
+  En la sala no va a estar la WiFi de siempre. Hay que \textbf{cargar el
+  hotspot del celular en el Pi} antes, con \verb|demo.sh hotspot|: sin eso no
+  hay forma de entrar. Pendiente.
+\end{alertblock}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Estado, bloque por bloque}
+  \relax{\footnotesize
+  \begin{tabular}{L{0.4cm}L{4.3cm}L{9.0cm}}
+    \toprule
+    & \textbf{Bloque} & \textbf{Estado al 2 de octubre} \\
+    \midrule
+    \listo & Mecánica, cableado, driver & Hecho y verificado \\
+    \listo & Firmware del ESP32 & Verificado; calibración de piso, ultrasónico de un pin y buzzer \\
+    \listo & Tracción & Avanza derecho y gira; rango 0,091 a 0,380 m/s \\
+    \listo & Alimentación portátil & Dos fuentes; \cod{0x0} en todas las corridas \\
+    \listo & Raspberry Pi y entorno & Funcionando; 12 GB libres \\
+    \curso & Visión & 10,6 FPS y detecta. La imagen rota no volvió el 2/10; \ojo{causa sin aislar} \\
+    \listo & Máquina de estados y control & Funcionando en el piso; 79 verificaciones \\
+    \curso & Pruebas integradas & Demo hecha, con video. Faltan las 10 corridas por escenario \\
+    \curso & Operación & Guía para operar sin asistencia; hotspot cargado y probado; casi todos los comandos ya corrieron en el robot. \ojo{Falta el ensayo} \\
+    \listo & Ultrasónico y buzzer & Cableados y probados en el piso el 2 de octubre \\
+    \pend & Encoders & Fuera del alcance: segunda versión \\
+    \pend & Informe & Sin empezar. Material: la bitácora, el cuaderno, este documento \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.5em}
+  {\footnotesize \listo{} hecho \quad \curso{} funciona, con algo pendiente
+  \quad \pend{} sin hacer}
+\end{frame}
+
+\begin{frame}{Lo que falta, en orden}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{alertblock}{Antes de la presentación}
+        \begin{enumerate}
+          \item \textbf{Ensayar con la guía}, sin ayuda, por el hotspot (ya
+                cargado y probado: el Pi arranca en él). Ahí se estrena
+                \cod{fondo}.
+          \item \textbf{Antes de cada corrida}: baterías fuera del cargador,
+                webcam firme, y \cod{demo.sh sonar}.
+          \item \textbf{La imagen rota}: si vuelve, Paso 24 del \cod{RUNBOOK}.
+          \item En la sala: \cod{demo.sh fondo}, por las falsas alarmas, y
+                decidir dónde va la mochila.
+        \end{enumerate}
+      \end{alertblock}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Para el informe}
+        \begin{enumerate}\setcounter{enumi}{6}
+          \item \textbf{Las 10 corridas por escenario} (Paso 23 del
+                \cod{RUNBOOK}): aproximación, huida, conflicto y sala vacía.
+          \item \textbf{Autonomía} del cargador.
+          \item Un \textbf{video desde afuera}, con sonido. Las fotos ya están.
+          \item Escribirlo. El hilo conductor ya tiene veintiún casos.
+        \end{enumerate}
+      \end{block}
+      \begin{block}{Ajustes finos que quedaron a ojo}
+        \begin{itemize}
+          \item Los tres del ultrasónico: una corrida cada uno.
+          \item El giro de la huida (1,2 s; depende del lado).
+          \item Al frenar se tuerce a la derecha: queda con el oso $\sim$9\grad{}
+                a la izquierda.
+          \item La pausa del barrido (0,6 s): la vuelta tarda 17 s.
+        \end{itemize}
+        Cómo tocarlos, con vuelta atrás: guía, sección 11.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{La segunda versión}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Lo que ya está previsto en el código}
+        \begin{itemize}
+          \item \textbf{Encoders}: pines reservados; el protocolo ya lleva los
+                dos campos.
+        \end{itemize}
+      \end{block}
+      \begin{block}{Lo que dejó de ser segunda versión}
+        El \textbf{ultrasónico} y el \textbf{buzzer} entraron el 2 de octubre.
+        Lo que el código tenía previsto desde septiembre anduvo casi sin
+        cambios; lo que hubo que agregar salió del piso: dos umbrales, la
+        retención, y el avance de \cod{BUSCAR}.
+      \end{block}
+      \begin{alertblock}{Lo que el ultrasónico mostró que falta}
+        \textbf{Sensores atrás y a los costados.} Hoy el robot retrocede y
+        gira a ciegas, y una pared muy de costado no la ve hasta estar encima.
+      \end{alertblock}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Lo que el piso mostró que haría falta}
+        \begin{itemize}
+          \item \textbf{Frenar más cerca}: con el ultrasónico ya puesto se
+                podría llegar a 10 cm con un avance final guiado por la
+                distancia; con la cámara sola el oso se sale del cuadro.
+          \item \textbf{Lazo de velocidad con encoders}: corregiría la
+                torcedura al acelerar y al frenar, que hoy carga la ley de
+                giro.
+          \item \textbf{Más alcance}: inferir a mayor tamaño sólo mientras
+                busca (está quieto, el FPS importa menos).
+          \item \textbf{Mitigar el ruido}: capacitores en los motores, ferrita
+                en el cable de la webcam, cables trenzados.
+          \item \textbf{Volver de \cod{ENCONTRADO}} a buscar después de unos
+                segundos.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{Glosario (1 de 2)}
+  \relax{\footnotesize
+  \begin{tabular}{L{3.3cm}L{10.5cm}}
+    \toprule
+    \textbf{Término} & \textbf{Qué quiere decir acá} \\
+    \midrule
+    Frame & Una imagen de la cámara. El lazo procesa $\sim$11 por segundo. \\
+    Caja (\emph{bounding box}) & El rectángulo con el que la red marca un objeto. \\
+    Confianza & Qué tan segura está la red de una caja, de 0 a 1. \\
+    COCO & El conjunto de 80 clases con el que viene entrenado el modelo. \\
+    YOLOv8n & La red de detección; ``n'' de \emph{nano}, la más chica. \\
+    Inferencia & Pasar un frame por la red. Cuesta 88 ms. \\
+    Tamaño de inferencia & El lado de la imagen que ve la red (320 px). \\
+    \cod{error_x} & Posición lateral del objeto en la imagen, de $-1$ a $+1$. \\
+    \cod{area_ratio} & Fracción de la imagen que ocupa la caja: tamaño aparente. \\
+    Confirmación temporal & Pedir 3 frames seguidos antes de creerle a una detección. \\
+    Período sordo & Los 2 s posteriores a una huida, en que se ignora la mochila. \\
+    Arbitraje & Decidir qué conducta gana cuando compiten dos. \\
+    MJPG / YUYV & Formatos de video de la webcam: comprimido y sin comprimir. \\
+    Franjas & Tramos grises de un frame MJPG al que le faltan datos. \\
+    \bottomrule
+  \end{tabular}}
+\end{frame}
+
+\begin{frame}{Glosario (2 de 2)}
+  \relax{\footnotesize
+  \begin{tabular}{L{3.3cm}L{10.5cm}}
+    \toprule
+    \textbf{Término} & \textbf{Qué quiere decir acá} \\
+    \midrule
+    PWM y duty & Encender y apagar el motor muy rápido; el duty es la fracción
+                 encendida (0 a 1023). \\
+    Puente H & El circuito del L298 que permite invertir el sentido del motor. \\
+    Tracción diferencial & Dos ruedas motrices; se gira dándoles distinta velocidad. \\
+    Trocha & Distancia entre las dos ruedas. \\
+    Zona muerta (motor) & El rango de duty bajo en que la rueda no se mueve. \\
+    Zona muerta (control) & El rango de error chico en que la ley no gira. \\
+    Pulso de arranque & Duty extra durante 150 ms para vencer la fricción estática. \\
+    Calarse & Que la rueda reciba duty y no gire (el motor pita). \\
+    Watchdog & El temporizador del ESP32 que frena si no llegan órdenes. \\
+    Latido & El hilo que repite el comando al ESP32 diez veces por segundo. \\
+    Vigencia & La edad máxima de un comando para que el latido lo repita. \\
+    \cod{get_throttled} & El registro del Pi que avisa de bajo voltaje o recorte. \\
+    \emph{Headless} & Sin monitor ni teclado: todo por SSH. \\
+    Régimen & El comportamiento estable, pasado el arranque. \\
+    \bottomrule
+  \end{tabular}}
+\end{frame}
+
+\begin{frame}{En una página}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Qué es}
+        {\small Un robot de dos ruedas que busca un oso impreso y huye de una
+        mochila, decidiendo todo a bordo con una red neuronal que corre a 11
+        cuadros por segundo en una Raspberry Pi 5.}
+      \end{block}
+      \begin{block}{Cómo está hecho}
+        {\small Dos niveles: el Pi ve y decide; el ESP32 mueve y protege. Entre
+        ellos, un protocolo de texto. Todos los números en un archivo, cada
+        uno con su origen. El comportamiento, verificable sin robot.}
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Dónde está}
+        {\small Funciona en el piso: busca, encuentra, se acerca, frena a 30 cm y
+        huye. Falta medirlo con series de corridas, blindarlo para la sala
+        (red, imagen rota) y escribir el informe.}
+      \end{block}
+      \begin{alertblock}{Lo que enseñó}
+        {\small Que un número vale en el contexto donde se midió. Veintiún veces,
+        desde la caída de tensión de un integrado hasta la etiqueta que una red
+        le pone a una mochila vista desde el piso.}
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}

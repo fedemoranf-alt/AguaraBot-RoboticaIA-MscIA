@@ -1,0 +1,404 @@
+% =============================================================================
+\section{Hardware}
+% =============================================================================
+
+\begin{frame}{Inventario: qué hay arriba del chasis}
+  \relax{\footnotesize
+  \begin{tabular}{L{2.9cm}L{5.4cm}L{5.5cm}}
+    \toprule
+    \textbf{Componente} & \textbf{Detalle} & \textbf{Rol} \\
+    \midrule
+    Raspberry Pi 5 & 8 GB de RAM, sin monitor (\emph{headless}) &
+      Alto nivel: cámara, red neuronal, máquina de estados, ley de control \\[1pt]
+    ESP32 & DevKit con puente USB CP2102 &
+      Bajo nivel: PWM de los motores, protocolo serie, watchdog \\[1pt]
+    Driver L298N & Módulo comercial, puente H doble &
+      Etapa de potencia de los dos motores \\[1pt]
+    Motores (2) & GM25-370, 12 V, ``350 rpm'', con reductora &
+      Tracción diferencial. \ojo{Las dos unidades no son iguales} \\[1pt]
+    Chasis 2WD & Dos ruedas de 60 mm y una rueda loca &
+      Locomoción \\[1pt]
+    Cámara & Webcam USB Microsoft LifeCam Studio, 640$\times$480 en MJPG &
+      Dice qué hay y hacia dónde \\[1pt]
+    Ultrasónico & Parallax PING))), tres pines, al frente &
+      Distancia a lo que tenga adelante. Desde el 2/10 \\[1pt]
+    Buzzer & Activo, de dos patas &
+      Alarma al huir y aviso al llegar. Desde el 2/10 \\[1pt]
+    Cargador portátil & 20 000 mAh, 5 V / 3 A, por USB-A &
+      Alimenta el Pi (y por sus USB, la webcam y el ESP32) \\[1pt]
+    UPS & 10 000 mAh, salida de 12 V &
+      Alimenta \textbf{sólo} el L298. Es el corte de emergencia \\[1pt]
+    \textcolor{grisclaro}{Encoders Hall} & \textcolor{grisclaro}{uno por motor, sin cablear} &
+      \textcolor{grisclaro}{Segunda versión} \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.4em}
+  {\footnotesize El oso es una \textbf{impresión en hoja A4} ($\sim$20 cm de
+  ancho) y la mochila es una mochila real, negra. Los dos son parte del
+  sistema: los números de la calibración valen para \emph{esos} objetos.}
+\end{frame}
+
+\begin{frame}{El robot, en el banco (agosto de 2026; el terminado está en ``El 2 de octubre'')}
+  \begin{columns}[c,onlytextwidth]
+    \begin{column}{0.27\textwidth}
+      \centering
+      \includegraphics[height=0.74\textheight]{robot_3.jpg}
+    \end{column}
+    \begin{column}{0.27\textwidth}
+      \centering
+      \includegraphics[height=0.74\textheight]{robot_2.jpg}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      {\footnotesize
+      \begin{block}{Qué se ve}
+        \begin{itemize}
+          \item Arriba, los dos motores con sus ruedas y, entre ellos, el
+                módulo \textbf{L298N} (rojo).
+          \item A la izquierda, el \textbf{ESP32} sobre una protoboard.
+          \item A la derecha, la \textbf{Raspberry Pi 5}.
+          \item El robot elevado sobre una caja: así se hicieron todas las
+                pruebas hasta el 30 de septiembre.
+        \end{itemize}
+      \end{block}
+      \begin{alertblock}{Lo que no se ve}
+        Son fotos del banco. Falta la webcam, que va al frente, y las dos
+        baterías. Las fotos del \textbf{robot terminado} están en la sección
+        ``El 2 de octubre''.
+      \end{alertblock}}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Alimentación: dos fuentes separadas}
+  \centering
+  \begin{tikzpicture}[font=\footnotesize, >={Stealth[length=2mm]},
+      caja/.style={draw, rounded corners=2pt, minimum height=0.9cm, align=center,
+                   line width=0.8pt, text width=2.6cm}]
+    \node[caja, draw=azul, fill=azul!8] (carg) {Cargador portátil\\20 000 mAh, 5 V / 3 A};
+    \node[caja, draw=azul, fill=azul!8, right=1.5cm of carg] (pi) {Raspberry Pi 5};
+    \node[caja, draw=azul, fill=azul!8, right=1.3cm of pi, yshift=0.6cm] (cam) {Webcam USB};
+    \node[caja, draw=azul, fill=azul!8, right=1.3cm of pi, yshift=-0.6cm] (esp) {ESP32};
+    \node[caja, draw=naranja, fill=naranja!8, below=1.5cm of carg] (ups) {UPS 10 000 mAh\\salida de 12 V};
+    \node[caja, draw=naranja, fill=naranja!8, right=1.5cm of ups] (l298) {L298N};
+    \node[caja, draw=naranja, fill=naranja!8, right=1.3cm of l298] (mot) {Motores};
+    \draw[->, azul, line width=0.9pt] (carg) -- node[above]{USB-A} (pi);
+    \draw[->, azul, line width=0.9pt] (pi.east) -- (cam.west);
+    \draw[->, azul, line width=0.9pt] (pi.east) -- (esp.west);
+    \draw[->, naranja, line width=0.9pt] (ups) -- node[above]{12 V} (l298);
+    \draw[->, naranja, line width=0.9pt] (l298) -- (mot);
+    \draw[<->, gris, dashed, line width=0.8pt] (esp.south) -- ++(0,-0.55) -| node[pos=0.25, below]{6 señales + GND común} (l298.north);
+  \end{tikzpicture}
+
+  \vspace{0.3em}
+  {\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Por qué separadas}
+        Con la UPS alimentando todo, la salida de 5 V se caía con la carga de
+        YOLO \textbf{aun con los motores quietos}: mínimo 4,695 V, el Pi
+        recortando el 43 \% del tiempo y el FPS de 11,2 a 8,83. Con el
+        cargador aparte: 11,08 FPS y \cod{get_throttled = 0x0}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{alertblock}{Tres cosas que no se tocan}
+        \begin{itemize}
+          \item El cargador va por \textbf{USB-A}. Por USB-C el Pi entra en
+                bucle de reinicios.
+          \item El \textbf{GND común} lo da el cableado ESP32--L298.
+          \item Para cortar los motores se saca el \textbf{conector de 12 V},
+                no la alimentación del Pi.
+        \end{itemize}
+      \end{alertblock}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{Cableado ESP32 $\leftrightarrow$ L298N}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.52\textwidth}
+      \begin{tabular}{L{1.6cm}L{1.3cm}L{3.6cm}}
+        \toprule
+        \textbf{L298N} & \textbf{GPIO} & \textbf{Función} \\
+        \midrule
+        ENA & 25 & PWM del canal A (\textbf{rueda derecha}) \\
+        IN1 / IN2 & 26 / 27 & Sentido del canal A \\
+        ENB & 13 & PWM del canal B (\textbf{rueda izquierda}) \\
+        IN3 / IN4 & 33 / 32 & Sentido del canal B \\
+        GND & GND & Referencia común \\
+        \midrule
+        Ultrasónico SIG & 12 & Con divisor 1 k / 2 k \\
+        Buzzer & 14 & Activo, directo al pin \\
+        \textcolor{grisclaro}{Encoders} & \textcolor{grisclaro}{34, 35, 36, 39} & \textcolor{grisclaro}{Reservados; sólo entrada} \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{PWM}
+        1 kHz y \textbf{10 bits} (0 a 1023). Se pasó de 8 a 10 bits para darle
+        resolución a la rueda izquierda, que usa una franja angosta del duty.
+      \end{block}
+      \begin{block}{Los canales quedaron cruzados}
+        El canal A del módulo quedó cableado a la rueda \textbf{derecha}. No se
+        tocó la bornera: se corrige en el firmware, en el bloque
+        \cod{PIN_LEFT_*} / \cod{PIN_RIGHT_*}.
+      \end{block}
+      \begin{block}{Jumpers}
+        Los de ENA y ENB van \textbf{retirados}: si no, el módulo deja los
+        motores siempre habilitados y el PWM no hace nada.
+      \end{block}
+    \end{column}
+  \end{columns}}
+
+  \vspace{0.2em}
+  {\footnotesize \ojo{El divisor del ultrasónico no es opcional:} el sensor
+  contesta a 5 V y el ESP32 no los tolera. El detalle del cableado está en la
+  sección ``El 2 de octubre''.}
+\end{frame}
+
+\begin{frame}{Los puertos USB del Pi importan}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Dónde va cada cosa}
+        \begin{itemize}
+          \item \textbf{Webcam}: USB \textbf{azul de abajo} (controlador 1).
+          \item \textbf{ESP32}: USB \textbf{negro de abajo} (controlador 3),
+                aparece como \cod{/dev/ttyUSB0}.
+        \end{itemize}
+        Quedan en controladores distintos. Compartiendo uno, el ruido de los
+        motores rompía más la imagen.
+      \end{block}
+      \begin{block}{Formato de la cámara}
+        \textbf{MJPG}, no YUYV. YUYV ocupa casi todo el ancho de banda del USB
+        2.0 y no tolera pérdidas: con los motores andando daba 2,3 FPS e
+        imagen en franjas. MJPG transmite $\sim$10 veces menos.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{alertblock}{El límite de corriente}
+        Con el cargador portátil el Pi no negocia potencia y limita \textbf{todos
+        sus USB a 600 mA}. La webcam declara 500 mA y el ESP32 100 mA: justo
+        el total. Se puede levantar con \cod{usb_max_current_enable=1}
+        (el cargador da 3 A). Está pendiente de probar.
+      \end{alertblock}
+      \begin{block}{Efecto colateral del puente USB}
+        Abrir el puerto serie \textbf{reinicia el ESP32} (la línea DTR del
+        CP2102). Por eso el enlace espera 2 s al abrir, y por eso leer
+        telemetría ``para mirar'' frena los motores.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{El L298N: lo que dice la hoja de datos y lo que se midió}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{La caída de tensión}
+        El L298 es un puente de transistores bipolares: se queda con parte de
+        la tensión. La hoja de datos sugería $\sim$1,4 V; \textbf{medido el
+        2026-07-24: 2,5 V}. Con 12 V de entrada, a los motores les llegan
+        $\sim$9,5 V.
+      \end{block}
+      \begin{block}{Consecuencia}
+        Fue la primera de las estimaciones que la medición desmintió. A partir
+        de ahí la regla del proyecto: \textbf{medir antes de creerle a la
+        hoja de datos}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Velocidad máxima real}
+        Con rueda de 60 mm y 9,5 V en bornes: \textbf{0,87 m/s} a duty
+        completo. A 5 FPS eso son 17 cm entre un frame y el siguiente:
+        demasiado para controlar con visión. Por eso el robot usa sólo la
+        parte baja del rango.
+      \end{block}
+      \begin{block}{Freno y rueda libre}
+        Con las dos entradas de un canal al mismo nivel, el puente \textbf{frena}
+        (cortocircuita el motor). El firmware frena 200 ms cuando salta el
+        watchdog y después suelta a rueda libre, para no calentar el L298.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Los motores: dos unidades que no son iguales}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.44\textwidth}
+      {\footnotesize
+      \begin{block}{Lo que se midió (2026-08-27)}
+        Ventanas de 10 s a duty fijo, contando vueltas:
+        \begin{itemize}
+          \item La rueda \textbf{izquierda} da \textbf{2,11 veces} más
+                velocidad por cuenta de duty que la derecha.
+          \item Y a la vez \textbf{cuesta más arrancarla}.
+        \end{itemize}
+      \end{block}
+      \begin{block}{La explicación}
+        Las dos cosas juntas no son fricción: son una \textbf{reducción menor}
+        (relación $\sim$2,1:1 entre las dos cajas). Sólo la derecha coincide
+        con la chapa de ``350 rpm''.
+      \end{block}
+      \begin{alertblock}{Lo que eso obliga}
+        Cada rueda tiene \textbf{su propia recta} de duty a velocidad, con
+        piso y techo propios. Un solo \cod{v_min} y un solo \cod{v_max} no
+        alcanzan.
+      \end{alertblock}}
+    \end{column}
+    \begin{column}{0.54\textwidth}
+      \centering
+      \includegraphics[width=0.93\textwidth]{fig1_rectas_calibracion.png}
+
+      {\scriptsize Velocidad medida contra duty, por rueda. Azul: izquierda;
+      naranja: derecha (cuaderno \cod{01_calibracion_motores.ipynb}).}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{La calibración: una recta por rueda, con piso y techo}
+  \centering
+  \includegraphics[width=0.64\textwidth]{fig3_calibracion_final.png}
+
+  \vspace{0.2em}
+  {\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{El mapa (en el ESP32)}
+        Para un comando $u$ entre 0 y 1 de cada rueda:
+        \[ \text{duty} = \text{PWM\_MIN} + (\text{PWM\_TOP} - \text{PWM\_MIN}) \cdot u \]
+        y duty $= 0$ si $u = 0$. Con eso las dos ruedas siguen \textbf{la misma
+        recta de velocidad}, con menos de 1 \% de diferencia.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{alertblock}{La consecuencia que más pesa}
+        \textbf{No hay arranque suave.} Cualquier $u > 0$ da como mínimo
+        \textbf{0,091 m/s}; un comando de 1 no hace ir ``despacito''. Para
+        parar hay que mandar exactamente 0. De acá salen la zona muerta del
+        control y varios de los problemas del piso.
+      \end{alertblock}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{Calibración de banco contra calibración de piso}
+  \relax{\footnotesize
+  \begin{tabular}{L{3.6cm}L{2.6cm}L{2.6cm}L{4.7cm}}
+    \toprule
+    \textbf{Constante del firmware} & \textbf{Banco (27/08)} & \textbf{Piso (30/09)} & \textbf{Qué es} \\
+    \midrule
+    \cod{PWM_MIN} izq / der & 125 / 112 & \textbf{300 / 230} &
+      Piso de la recta: el duty de la mínima velocidad sostenible \\[1pt]
+    \cod{PWM_TOP} izq / der & 238 / 352 & \textbf{413 / 470} &
+      Techo de la recta: el duty de $u = 1$ \\[1pt]
+    \cod{PWM_BREAKAWAY} izq / der & 290 / 220 & \textbf{380 / 280} &
+      Pulso de arranque, para vencer la fricción estática \\[1pt]
+    \cod{BREAKAWAY_MS} & 80 ms & \textbf{150 ms} &
+      Cuánto dura ese pulso \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.5em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{alertblock}{Por qué hubo que rehacerla}
+        {\footnotesize La de banco se hizo \textbf{con las ruedas al aire}. En el piso
+        la rueda izquierda ---la de menos par, y encima la de menor duty--- se
+        \textbf{calaba con cualquier comando}: los motores pitaban y el robot
+        no giraba.}
+      \end{alertblock}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{El modelo que funcionó}
+        {\footnotesize La carga \textbf{suma un escalón de duty} (el par es
+        corriente) y \textbf{no cambia la pendiente} (la velocidad es fuerza
+        contraelectromotriz). Piso y techo suben lo mismo por rueda. Verificado:
+        avance derecho, y 57 cm donde el modelo predecía 57.}
+      \end{block}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.2em}
+  {\footnotesize Las constantes \cod{PWM_*} de \cod{src/config.py} son una
+  copia informativa: las que valen están en el firmware. Se pusieron al día
+  con los valores de piso el 1 de octubre (en la PC; falta copiarlas al Pi).}
+\end{frame}
+
+\begin{frame}{La cámara}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Lo que quedó}
+        \textbf{Webcam USB Microsoft LifeCam Studio} en \cod{/dev/video0}.
+        Captura a 640$\times$480 en MJPG; la red trabaja a 320 px.
+        \begin{itemize}
+          \item Campo visual horizontal: \textbf{$\sim$52\grad} (estimado en el
+                piso; se había supuesto 60).
+          \item Alcance con el oso A4: \textbf{$\sim$1,3 m}.
+          \item Montada al frente y muy baja (del orden de 10 cm del piso;
+                no se midió). Ve los objetos desde abajo.
+        \end{itemize}
+      \end{block}
+      \begin{block}{Lo que la cámara mide}
+        No mide distancia: mide \textbf{tamaño aparente}. Por eso el objeto
+        con el que se calibra es parte del número.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{alertblock}{Lo que no funcionó: la Arducam}
+        La cámara prevista era una Arducam UC-609 (sensor IMX219, cable de 15
+        pines) por el conector CSI. El Pi 5 \textbf{nunca la vio}: nada en
+        \cod{dmesg}, nada en el bus I2C de los conectores, con las cuatro
+        orientaciones del cable. Como ese sensor sí está en la autodetección,
+        la falla era eléctrica. Se descartó \textbf{por tiempo, no por diseño}.
+      \end{alertblock}
+      \begin{block}{Dos cosas raras de la imagen}
+        \begin{itemize}
+          \item Girando de corrido sale \textbf{movida}: YOLO no ve nada.
+          \item A ratos llega \textbf{en franjas}, aun con los motores
+                parados. Causa sin aislar.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{La Raspberry Pi 5}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Sistema}
+        \begin{itemize}
+          \item Raspberry Pi OS (Trixie), 64 bits, Python 3.13.
+          \item Sin monitor ni teclado: se entra por SSH con la clave
+                \cod{id_ed25519_pi}. Nombre \cod{pi-MB}, usuario \cod{admin}.
+          \item Todo el proyecto vive en \cod{~/TPF/}: \cod{src/},
+                \cod{scripts_pi/}, \cod{logs/} y el entorno \cod{.venv/}.
+        \end{itemize}
+      \end{block}
+      \begin{block}{Entorno de Python}
+        \cod{torch} 2.14, \cod{torchvision} 0.29, \cod{ultralytics} 8.4,
+        \cod{opencv} 5.0 y \cod{pyserial}; todo instalado por rueda, nada
+        compilado. El entorno pesa 5,6 GB, de los cuales 3,3 GB son librerías
+        de CUDA que no se usan (pendiente de higiene).
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Térmico}
+        Con YOLO real corriendo 150 s: 2400 MHz y sin recortes, con meseta en
+        \textbf{73--75 \grad C}. A 80 \grad C empieza a recortar. (Un test
+        sintético de cuatro bucles vacíos sí lo hacía recortar: es más severo
+        que la inferencia.)
+      \end{block}
+      \begin{block}{Cómo se le pregunta al Pi cómo está}
+        \begin{itemize}
+          \item \cod{vcgencmd get_throttled}: \cod{0x0} es todo bien. El bit 0
+                es bajo voltaje ahora; el 16, que lo hubo desde el arranque.
+          \item \cod{vcgencmd pmic_read_adc EXT5V_V}: la tensión de entrada
+                (4,9 a 5,1 V).
+          \item \cod{vcgencmd measure_temp}.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}

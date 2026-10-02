@@ -1,0 +1,281 @@
+% =============================================================================
+\section{El firmware del ESP32}
+% =============================================================================
+
+\begin{frame}{Qué es y qué no es}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Dónde está}
+        \cod{firmware/esp32_control/src/main.cpp}: un solo archivo de unas
+        1360 líneas, en C con el marco de Arduino, compilado con PlatformIO.
+        La carpeta \cod{firmware/} es un repositorio git aparte.
+      \end{block}
+      \begin{block}{Qué hace}
+        \begin{itemize}
+          \item Recibe intención de movimiento por el puerto serie.
+          \item La traduce a duty de PWM, rueda por rueda.
+          \item Frena solo si se queda sin órdenes.
+          \item Devuelve telemetría 20 veces por segundo.
+          \item Ofrece un modo manual y un modo de calibración para trabajar
+                sin el Pi.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Qué no hace}
+        \textbf{No decide nada}. No sabe qué es un oso, ni en qué estado está
+        el comportamiento. Si el Pi le pide algo absurdo, lo ejecuta (acotado
+        a $\pm 100$).
+      \end{block}
+      \begin{block}{El otro firmware}
+        \cod{esp32_motor_test/} fue el de la prueba de cableado de julio:
+        mover los motores con teclas. Quedó como registro; no se usa.
+      \end{block}
+      \begin{block}{Cómo saber qué firmware tiene cargado}
+        \cod{demo.sh firmware} le pide sus parámetros. Tiene que decir
+        \cod{v_min izq/der: 300 / 230}. Si dice \cod{125 / 112} es el de
+        banco, con el que la rueda izquierda no se mueve apoyada.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}[fragile]{El lazo principal del ESP32}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.50\textwidth}
+\footnotesize
+\begin{verbatim}
+loop():
+  serial_poll()      # lee lineas, las procesa
+  ping_poll()        # recoge el eco (ultrasonico)
+  buzz_update()      # avanza el patron del buzzer
+  ramp_update()      # calibracion: rampa K
+  window_update()    # calibracion: ventana V
+
+  cada 60 ms:  ping_send()
+  cada 10 ms:                       # 100 Hz
+      watchdog_update()
+      si esta en calibracion:
+          duty crudo, sin compensar
+      si no esta frenando el watchdog:
+          wheel_apply(izquierda)
+          wheel_apply(derecha)
+  cada 50 ms:  telemetry_send()     # 20 Hz
+\end{verbatim}
+\end{column}
+\begin{column}{0.48\textwidth}
+\footnotesize
+\begin{block}{Nada bloquea}
+  No hay ningún \verb|delay()| en el lazo. Cada tarea mira el reloj y hace su
+  parte si le toca. El ultrasónico se mide \textbf{por interrupción}: un
+  \verb|pulseIn()| con 30 ms de espera habría trabado un lazo de 10 ms.
+\end{block}
+\begin{block}{Qué pasa cuando llega una línea}
+  \verb|serial_poll()| junta caracteres hasta el salto de línea y llama a
+  \verb|process_line()|, que distingue:
+  \begin{itemize}
+    \item \verb|M,...| y \verb|B,...|: el protocolo.
+    \item \verb|K|, \verb|V|, \verb|C|: calibración.
+    \item una letra sola: modo manual.
+  \end{itemize}
+  Un \verb|M| guarda el comando de cada rueda y pone el watchdog en cero.
+\end{block}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{De \cod{M,v_lin,v_ang} al duty de cada rueda}
+  \centering
+  \begin{tikzpicture}[font=\footnotesize, >={Stealth[length=2mm]},
+      p/.style={draw=naranja, fill=naranja!8, rounded corners=2pt, minimum height=1.05cm,
+                align=center, line width=0.8pt, text width=2.75cm, inner sep=2pt}]
+    \node[p] (a) {\cod{mix()}\\izq $= v_{lin} + v_{ang}$\\der $= v_{lin} - v_{ang}$};
+    \node[p, right=0.5cm of a] (b) {\cod{deadzone_map()}\\duty $=$ min $+$ (top $-$ min)$\cdot u$};
+    \node[p, right=0.5cm of b] (c) {\cod{wheel_apply()}\\pulso de arranque\\los primeros 150 ms};
+    \node[p, right=0.5cm of c] (d) {\cod{wheel_raw()}\\sentido en IN1..IN4\\duty en el PWM};
+    \draw[->] (a) -- (b); \draw[->] (b) -- (c); \draw[->] (c) -- (d);
+  \end{tikzpicture}
+
+  \vspace{0.4em}
+  \relax{\footnotesize
+  \begin{tabular}{L{2.0cm}L{2.5cm}L{2.5cm}L{6.4cm}}
+    \toprule
+    \textbf{Comando} & \textbf{Rueda izquierda} & \textbf{Rueda derecha} & \textbf{Qué hace el robot} \\
+    \midrule
+    \cod{M,55,0} & $+55$ \hacia{} duty 362 & $+55$ \hacia{} duty 362 &
+      Avanza derecho a 0,25 m/s. El mismo duty es casualidad: las rectas se cruzan ahí \\[1pt]
+    \cod{M,0,35} & $+35$ \hacia{} duty 339 & $-35$ \hacia{} duty $-314$ &
+      Gira a la derecha en el lugar. La izquierda arranca con 380 los primeros 150 ms \\[1pt]
+    \cod{M,13,6} & $+19$ \hacia{} duty 321 & $+7$ \hacia{} duty 246 &
+      Avanza despacio doblando a la derecha \\[1pt]
+    \cod{M,0,0} & 0 & 0 & Para. Es el único comando que detiene las ruedas \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.4em}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Si la mezcla se pasa de 100}
+        Se escala \textbf{el par completo}, no cada rueda por separado:
+        recortar una sola cambiaría la curvatura pedida.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{El signo}
+        \cod{v_ang} positivo gira a la \textbf{derecha}, igual que
+        \cod{error_x} positivo es ``objetivo a la derecha''. El número sale de
+        la ley de control y entra al protocolo sin cambiar de signo.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{Las constantes del firmware}
+  \relax{\footnotesize
+  \begin{tabular}{L{3.4cm}L{1.9cm}L{8.4cm}}
+    \toprule
+    \textbf{Constante} & \textbf{Valor} & \textbf{Qué hace} \\
+    \midrule
+    \cod{PWM_RES_BITS}, \cod{PWM_MAX} & 10, 1023 & Resolución del PWM \\
+    \cod{PWM_FREQ_HZ} & 1000 & Frecuencia del PWM de los motores (el pitido que se oye) \\
+    \cod{PWM_MIN_LEFT/RIGHT} & 300 / 230 & Piso de cada recta: el duty de $u \to 0^+$ \\
+    \cod{PWM_TOP_LEFT/RIGHT} & 413 / 470 & Techo de cada recta: el duty de $u = 1$ \\
+    \cod{PWM_BREAKAWAY_*} & 380 / 280 & Duty mínimo durante el pulso de arranque \\
+    \cod{BREAKAWAY_MS} & 150 & Duración del pulso de arranque, al salir de parado \\
+    \midrule
+    \cod{CMD_TIMEOUT_MS} & 500 & Watchdog: sin comando \cod{M} durante este tiempo, frena \\
+    \cod{WD_BRAKE_MS} & 200 & Cuánto frena activo antes de soltar a rueda libre \\
+    \cod{CONTROL_PERIOD_MS} & 10 & Período del lazo de control (100 Hz) \\
+    \cod{TELEMETRY_PERIOD_MS} & 50 & Período de la telemetría (20 Hz) \\
+    \midrule
+    \cod{PIN_SONAR}, \cod{PIN_BUZZER} & 12, 14 & Los pines del ultrasónico y del buzzer \\
+    \cod{PING_PERIOD_MS} & 60 & Ultrasónico: tiempo entre disparos \\
+    \cod{ECHO_TIMEOUT_US} & 30000 & Ultrasónico: sin eco en este tiempo, lectura $-1$ \\
+    \cod{BUZZER_PASSIVE} & 0 & El buzzer es activo: suena solo con nivel alto \\
+    \cod{BUZZ_ALARM_ON/OFF_MS} & 150 / 150 & Ritmo de la alarma: suena y calla \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.3em}
+  {\footnotesize Las seis primeras filas de motores son \textbf{la calibración}:
+  cambiarlas es recompilar y volver a grabar el ESP32. El ultrasónico es un
+  PING))) de \textbf{un solo pin} (dispara y escucha por el mismo cable): cómo
+  lo maneja el firmware está en la sección ``El 2 de octubre''.}
+\end{frame}
+
+\begin{frame}{El watchdog y el pulso de arranque}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Watchdog}
+        \relax{\small Si pasan \textbf{500 ms} sin un comando \cod{M}:
+        \begin{enumerate}
+          \item pone los dos comandos en cero,
+          \item \textbf{frena activo} 200 ms (las dos entradas del puente al
+                mismo nivel),
+          \item suelta a rueda libre, para no calentar el L298,
+          \item avisa por el puerto con una línea de diagnóstico.
+        \end{enumerate}
+        Arranca ya ``disparado'': el robot no se mueve hasta el primer
+        comando. En modo manual está \ojo{desactivado}.}
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Pulso de arranque (\emph{breakaway})}
+        \relax{\small Arrancar una rueda parada cuesta más que mantenerla
+        girando. Cuando el duty pasa de cero a algo, durante los primeros 150
+        ms el firmware aplica \textbf{al menos} 380 (izquierda) o 280
+        (derecha), y después baja al duty pedido.}
+      \end{block}
+      \begin{alertblock}{El costo de ese pulso}
+        \relax{\small Cada vez que una rueda arranca o \textbf{cambia de
+        sentido}, pega un empujón. En el barrido a pasos eso es buena parte de
+        cada paso; al acercarse al oso, una rueda que se invertía sacudía al
+        robot (ver ``La ley de control'').}
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Los tres modos del firmware}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Protocolo (el normal)}
+        \cod{M,<v_lin>,<v_ang>} y \cod{B,<patron>}. Con watchdog y con
+        compensación de zona muerta. Es lo que usa el Pi.
+
+        Cualquier \cod{M} vuelve a este modo desde los otros.
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Manual (banco)}
+        Una letra y Enter, desde un monitor serie:
+        \begin{itemize}
+          \item \cod{w s a d}: mover.
+          \item \cod{x}: parar; \cod{b}: frenar.
+          \item \cod{1 2}: una rueda sola.
+          \item \cod{+ -}: velocidad.
+          \item \cod{z}: zona muerta sí/no.
+          \item \cod{e}: ver parámetros.
+          \item \cod{p}: volver a protocolo.
+        \end{itemize}
+        \ojo{Sin watchdog.}
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Calibración}
+        Duty \textbf{crudo}, sin compensar:
+        \begin{itemize}
+          \item \cod{K,r,duty0}: rampa hacia abajo, para ver a qué duty se
+                detiene la rueda.
+          \item \cod{V,r,duty,ms}: ventana cronometrada, para contar vueltas.
+          \item \cod{C,r,duty}: duty fijo.
+        \end{itemize}
+        \cod{r} es 0 izquierda, 1 derecha, 2 las dos. \ojo{Sin watchdog.}
+      \end{block}
+    \end{column}
+  \end{columns}}
+
+  \vspace{0.3em}
+  \begin{exampleblock}{Para qué sirvió cada uno}
+    {\footnotesize El modo manual, para la prueba de recta y el primer cableado. La
+    calibración, para medir las rectas de agosto (\cod{K} y \cod{V}) y los
+    umbrales en el piso de septiembre (\cod{C}, desde
+    \cod{scripts_pi/piso/umbral_piso.py}).}
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}{Cómo se compila y se graba}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Compilar (en la PC)}
+        Con PlatformIO, desde \cod{firmware/esp32_control/}:
+        \cod{pio run}. Deja los binarios en \cod{.pio/build/esp32dev/}.
+      \end{block}
+      \begin{block}{Grabar desde el Pi, sin mover cables}
+        El ESP32 vive enchufado al Pi, así que se copian los cuatro binarios al
+        Pi y se graban con \cod{esptool} por \cod{/dev/ttyUSB0}. El
+        procedimiento completo, con los desplazamientos de cada binario, está
+        en \cod{RUNBOOK.md}, sección ``Flashear el ESP32 desde el Pi''.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{alertblock}{Antes de grabar: sacar los 12 V}
+        Mientras se graba, los pines del ESP32 quedan flotando y el L298 puede
+        dar un tirón a los motores.
+      \end{alertblock}
+      \begin{block}{Después de grabar}
+        \cod{demo.sh firmware} para confirmar los parámetros cargados, y una
+        prueba corta con \cod{scripts_pi/piso/escalones.py} (comandos por el
+        protocolo, con watchdog) antes de correr el comportamiento.
+      \end{block}
+      \begin{block}{Cuándo hubo que hacerlo}
+        Una sola vez desde agosto: el 30 de septiembre, para cargar la
+        calibración de piso.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}

@@ -1,0 +1,263 @@
+% =============================================================================
+\section{Historia y mediciones}
+% =============================================================================
+
+\begin{frame}{Quince jornadas (1 de 2): de la idea al lazo completo}
+  \relax{\footnotesize
+  \begin{tabular}{L{1.0cm}L{1.7cm}L{11.1cm}}
+    \toprule
+    \textbf{Día} & \textbf{Fecha} & \textbf{Qué pasó} \\
+    \midrule
+    0--1 & 22/07 & Alcance y arquitectura. Chasis, motores, L298 y ESP32
+                   montados y cableados. \\[1pt]
+    2 & 24/07 & Primera prueba de motores. Aparecen dos sorpresas: el L298 se
+                queda con \textbf{2,5 V} (no 1,4) y las ruedas no arrancan al
+                mismo PWM. \\[1pt]
+    --- & --- & \emph{Cinco semanas parado.} \\[1pt]
+    3--5 & 27/08 & Firmware definitivo verificado. \textbf{Calibración de
+                   motores}: las dos unidades difieren 2,11 veces; una recta
+                   por rueda. \\[1pt]
+    6 & 28/08 & Cuaderno de análisis de la calibración, código de visión y
+                presentación de arquitectura. \\[1pt]
+    7 & 01--04/09 & Puesta en marcha del Pi 5 sin monitor. El grabador de
+                    tarjetas deja la SD sin configurar: nacen los scripts de
+                    verificación. \\[1pt]
+    8 & 08/09 & Fuente del Pi resuelta. Se escribe y verifica \textbf{todo el
+                comportamiento sin hardware} (enlace, control, estados, lazo:
+                40 verificaciones). La cámara CSI no aparece. \\[1pt]
+    9 & 09/09 & Entorno de Python en el Pi. Térmico medido con la carga real.
+                \textbf{Tamaño de inferencia 320}, decidido sin cámara. \\[1pt]
+    10 & 22/09 & Entra la \textbf{webcam USB}. Lazo completo a 11,2 FPS.
+                 Calibración del área. Todo verificado contra el ESP32 real,
+                 con el robot elevado. \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.3em}
+  {\footnotesize Los ``días'' son jornadas de trabajo, no fechas del calendario.}
+\end{frame}
+
+\begin{frame}{Quince jornadas (2 de 2): del banco al piso}
+  \relax{\footnotesize
+  \begin{tabular}{L{1.0cm}L{1.7cm}L{11.1cm}}
+    \toprule
+    \textbf{Día} & \textbf{Fecha} & \textbf{Qué pasó} \\
+    \midrule
+    11 & 23/09 & \textbf{Alimentación portátil.} La UPS sola no sostiene los 5
+                 V con YOLO corriendo. Solución: dos fuentes separadas. \\[2pt]
+    12 & 30/09 (mañana) & Sin robot (baterías cargando): registro por corrida,
+                 analizador, \textbf{simulador} con predicciones, y la guía
+                 para el día de la presentación. \\[2pt]
+    13 & 30/09 (tarde) & \textbf{Primera vez en el piso.} Tres problemas, cada
+                 uno escondido detrás del anterior: la rueda izquierda se cala,
+                 el ruido de los motores rompe la imagen, y girando de corrido
+                 la imagen sale movida. Los tres resueltos por separado;
+                 ninguna aproximación completa. \\[2pt]
+    14 & 01/10 & \textbf{Segunda vez en el piso.} La imagen se rompe con los
+                 motores parados (causa sin aislar). Se mide el paso de giro.
+                 Primera aproximación completa, comportamiento completo, huida
+                 (cuatro intentos) y dos demos de 90 s. Ultrasónico y buzzer,
+                 a la segunda versión. \\[2pt]
+    15 & 02/10 & \textbf{Entran el ultrasónico y el buzzer.} El primer sensor
+                 estaba muerto. Tres ajustes en el piso, uno por corrida. Los
+                 comandos escritos la noche anterior corren por primera vez. \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.6em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{El patrón de las jornadas}
+        {\footnotesize Mientras faltó una pieza (la cámara, las baterías), se
+        avanzó con lo que no dependía de ella. La mitad del trabajo de visión
+        se cerró sin cámara, y todo el comportamiento, sin robot.}
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{alertblock}{La contracara}
+        {\footnotesize Cada pieza que llegó destapó algo que las verificaciones
+        sin hardware no podían ver. El piso, más que ninguna: en dos jornadas
+        cambió casi todos los parámetros del comportamiento.}
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Mediciones: la visión}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{tabular}{L{1.7cm}L{1.6cm}L{2.9cm}}
+        \toprule
+        \textbf{Tamaño} & \textbf{FPS} & \textbf{Veredicto} \\
+        \midrule
+        640 & 3,2 & Debajo del objetivo \\
+        480 & 5,2 & Justo en el límite \\
+        \textbf{320} & \textbf{11,3} & Más del doble del objetivo \\
+        256 & 17,7 & Sobra; resigna alcance \\
+        \bottomrule
+      \end{tabular}
+
+      \vspace{0.2em}
+      FPS de cámara más red, en el Pi 5. El objetivo del plan era 5.
+
+      \vspace{0.5em}
+      \begin{tabular}{L{3.6cm}L{2.6cm}}
+        \toprule
+        \textbf{Lazo completo} & \\
+        \midrule
+        Con estados y enlace real & 11,2 FPS \\
+        Midiendo la imagen (franjas) & $\sim$11 FPS \\
+        Además grabando video & $\sim$10 FPS \\
+        Costo de estados y enlace & $\sim$1 \% \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Latencia}
+        \begin{itemize}
+          \item Edad del frame al leerlo: 36 a 64 ms.
+          \item Inferencia: 88 ms.
+          \item De foto a decisión: \textbf{$\sim$150 ms}.
+        \end{itemize}
+      \end{block}
+      \begin{block}{Alcance con el oso}
+        \begin{itemize}
+          \item Oso impreso de 6,5 cm: $\sim$45 cm.
+          \item Oso de hoja A4 (20 cm): 1,1 m medido el 22/09; en el piso lo
+                confirmó desde $\sim$1,3 m.
+          \item A 2 m no lo ve: lo encuentra cuando la reubicación lo acerca.
+        \end{itemize}
+      \end{block}
+      \begin{block}{Confianza típica}
+        Oso: 0,85 a 0,95. Mochila (como \cod{suitcase}): 0,60 a 1 m y 0,32 a
+        0,41 a 1,2 m.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{Mediciones: energía y temperatura}
+  \relax{\footnotesize
+  \begin{tabular}{L{3.9cm}L{2.2cm}L{2.5cm}L{2.2cm}L{2.2cm}}
+    \toprule
+    \textbf{Configuración} & \textbf{FPS} & \cod{get_throttled} & \textbf{Tensión mín.} & \textbf{Veredicto} \\
+    \midrule
+    Fuente de pared & 11,2 & \cod{0x50000} (dos eventos pasados) & 4,95 V & bien, justo \\
+    UPS alimentando todo & 8,83 & \cod{0x50005} el 43 \% & 4,695 V & \ojo{no alcanza} \\
+    Cargador (Pi) + UPS (motores) & 11,08 & \cod{0x0} & 4,91 V & bien \\
+    Ídem, en el piso, con motores & 9,6 a 10 (con video) & \cod{0x0} & 4,92 V & bien \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.6em}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Lo que dijo la UPS}
+        La caída la provoca \textbf{la carga de CPU de YOLO}, no los motores:
+        seguía con las ruedas quietas. No es un tema de capacidad (los mAh
+        sobraban): es lo que la salida de 5 V sostiene con carga.
+      \end{block}
+      \begin{block}{En el piso}
+        En las diez corridas del 1 de octubre, \cod{0x0} en todas las muestras
+        y tensión entre 4,92 y 5,14 V. El Pi no se reinicia al arrancar los
+        motores.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Temperatura}
+        \begin{itemize}
+          \item YOLO continuo 150 s: meseta en 73--75 \grad C, sin recortes.
+          \item En el piso, corridas de 30 a 90 s: 55 a 68 \grad C.
+          \item A 80 \grad C empieza a recortar.
+        \end{itemize}
+      \end{block}
+      \begin{alertblock}{Sin medir}
+        La \textbf{autonomía} del cargador. La sesión del 1 de octubre duró
+        dos horas y media sin problemas, pero no es una medición.
+      \end{alertblock}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{Mediciones: el movimiento}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{tabular}{L{4.0cm}L{2.5cm}}
+        \toprule
+        \textbf{Qué} & \textbf{Valor} \\
+        \midrule
+        Velocidad mínima ($u \to 0^+$) & 0,091 m/s \\
+        Velocidad máxima ($u = 1$) & 0,380 m/s \\
+        Avance de prueba en el piso & 57 cm (predicho: 57) \\
+        Giro con \cod{v_ang} 35, en régimen & 124\grad/s \\
+        Giro con \cod{v_ang} 60, en régimen & 165\grad/s \\
+        Trocha con regla & 21,5 cm \\
+        Trocha efectiva (girando) & 18 cm \\
+        \bottomrule
+      \end{tabular}
+
+      \vspace{0.5em}
+      \begin{tabular}{L{2.0cm}L{1.5cm}L{2.8cm}}
+        \toprule
+        \textbf{Pulso de giro} & \cod{v_ang} & \textbf{Imagen renovada} \\
+        \midrule
+        0,40 s & 35 & 61 \% ($\sim$32\grad) \\
+        \textbf{0,25 s} & \textbf{35} & \textbf{35 \% ($\sim$18\grad)} \\
+        0,40 s & 10 & 39 \% ($\sim$20\grad) \\
+        0,25 s & 10 & 22 \% ($\sim$12\grad) \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Dos trochas}
+        La de la regla (entre centros de rueda) es correcta y \textbf{no es la
+        que gira el robot}. La efectiva sale de los giros medidos. Y avanzando,
+        el giro realizado es todavía menor: más o menos la mitad.
+      \end{block}
+      \begin{block}{Régimen contra arranque}
+        Los 124 y 165\grad/s se midieron sobre varias vueltas. Un pulso de 0,25
+        s da $\sim$18\grad, o sea 72\grad/s de promedio; y el giro de la huida,
+        110\grad{} en 1,07 s arrancando desde la marcha atrás.
+      \end{block}
+      \begin{block}{Cómo se midió el paso}
+        Con la propia cámara: el corrimiento horizontal de la escena entre una
+        pausa y la siguiente, emparejando puntos. Las tandas de 0,40 s tienen
+        pocas mediciones válidas (pared blanca).
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{Las métricas del plan: objetivo, medido y pendiente}
+  \relax{\footnotesize
+  \begin{tabular}{L{3.5cm}L{2.5cm}L{5.4cm}L{2.0cm}}
+    \toprule
+    \textbf{Métrica} & \textbf{Objetivo} & \textbf{Medido} & \\
+    \midrule
+    FPS de inferencia & 5 o más & 11,3 & \listo \\[1pt]
+    FPS del lazo completo & 5 o más & 11,2 ($\sim$10 grabando) & \listo \\[1pt]
+    Tasa de detección & 80 \% hasta 2 m & El alcance es $\sim$1,3 m: la métrica,
+      como está escrita, no se puede cumplir & \curso \\[1pt]
+    Falsos positivos & menos de 1 por minuto & Con el umbral de la mochila en
+      0,20: 0 en 742 frames en un pasillo; 3 frames sueltos en un hall con
+      sillones negros & \curso \\[1pt]
+    Éxito de aproximación & 8 de 10 & Sin serie: llegó en 5 de las 6 corridas
+      con oso (la que falló tenía la imagen rota) & \pend \\[1pt]
+    Éxito de escape & 8 de 10 & Sin serie: las dos primeras pruebas no
+      dispararon; después, seis huidas en tres corridas & \pend \\[1pt]
+    Arbitraje de conflicto & 10 de 10 & Una vez: con oso y mochila juntos, huyó & \pend \\[1pt]
+    Tiempo hasta encontrar & registrar & 3 s de frente; 15 a 17 s a 90\grad{} y 1 m & \curso \\[1pt]
+    Latencia de reacción & registrar & 0,2 s de la primera vista a la huida,
+      más $\sim$0,15 s de edad del frame & \listo \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.4em}
+  {\footnotesize \listo{} medido \quad \curso{} medido a medias o con salvedades
+  \quad \pend{} faltan las 10 corridas por escenario. \textbf{Los porcentajes
+  de éxito no existen todavía}: lo de hoy son pruebas de puesta a punto, no
+  una evaluación.}
+\end{frame}

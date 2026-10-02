@@ -1,0 +1,307 @@
+% =============================================================================
+%  1. Panorama: qué es, qué hace hoy, qué quedó afuera
+% =============================================================================
+
+\begin{frame}{Para qué es este documento}
+  \begin{block}{Objetivo}
+    Tener en un solo lugar \destaca{todo el trabajo}: qué hace el robot, cómo
+    está armado, qué hace cada archivo y cada parámetro, y \destaca{de dónde
+    salió cada número}. Es un resumen para mí, no para proyectar: tiene más
+    texto que una presentación normal.
+  \end{block}
+
+  \vspace{0.3em}
+  Cómo está organizado:
+  \begin{enumerate}
+    \item \textbf{Panorama} --- qué hace hoy y qué quedó afuera.
+    \item \textbf{Hardware} y \textbf{arquitectura} --- las piezas y cómo se hablan.
+    \item \textbf{Archivo por archivo} --- el código del Pi y el firmware del ESP32.
+    \item \textbf{Comportamiento} --- la máquina de estados y la ley de control.
+    \item \textbf{Parámetro por parámetro} --- qué hace cada uno y por qué vale lo que vale.
+    \item \textbf{Historia} --- las 15 jornadas, lo que se midió y lo que falló.
+    \item \textbf{Operación y pendientes} --- cómo se usa y qué falta.
+  \end{enumerate}
+
+  \vspace{0.2em}
+  {\footnotesize Fuentes: \cod{PLAN.md} (el plan y la bitácora), \cod{HARDWARE.md},
+  \cod{RUNBOOK.md}, los comentarios de \cod{src/config.py} y los registros de
+  \cod{logs/}. Si algo de acá no coincide con esos archivos, mandan ellos.}
+\end{frame}
+
+\begin{frame}{Índice}
+  \setbeamertemplate{section in toc}[sections numbered]
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      {\footnotesize\tableofcontents[sections={1-8},hideallsubsections]}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      {\footnotesize\tableofcontents[sections={9-15},hideallsubsections]}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% =============================================================================
+\section{Panorama}
+% =============================================================================
+
+\begin{frame}{El objetivo, en una frase}
+  \begin{alertblock}{}
+    \centering\large
+    Un robot que \textbf{recorre una sala}, \textbf{reconoce dos objetos con la
+    cámara} y \textbf{se comporta distinto con cada uno}: se acerca a uno y huye
+    del otro.
+  \end{alertblock}
+
+  \vspace{0.6em}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Objetivo: el oso (\cod{teddy bear})}
+        Un oso \textbf{impreso en una hoja A4} ($\sim$20 cm). El robot lo busca,
+        se le acerca corrigiendo el rumbo con la cámara y frena a $\sim$30 cm.
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Amenaza: la mochila (\cod{backpack})}
+        Una mochila real. El robot retrocede, gira media vuelta y se aleja.
+        Tiene \textbf{prioridad incondicional} sobre todo lo demás.
+      \end{block}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.6em}
+  \small
+  Todo corre \textbf{a bordo}: una Raspberry Pi 5 con una red neuronal
+  (YOLOv8n) decide, y un ESP32 mueve los motores. No hay PC externa, ni
+  teleoperación, ni nube. La notebook sólo sirve para lanzar la corrida por SSH
+  y mirar lo que pasa.
+\end{frame}
+
+\begin{frame}{Qué hace el robot hoy (medido en el piso el 1 y el 2 de octubre)}
+  \relax{\footnotesize
+  \begin{tabular}{L{2.4cm}L{8.3cm}L{3.0cm}}
+    \toprule
+    \textbf{Qué ve} & \textbf{Qué hace} & \textbf{Estado} \\
+    \midrule
+    Nada &
+      Mira quieto $\sim$0,6 s, gira un paso de $\sim$18\grad{} y repite. Una
+      vuelta entera tarda $\sim$17 s; después avanza $\sim$18 cm para cambiar el
+      punto de vista y vuelve a empezar. &
+      \cod{BUSCAR} \\[2pt]
+    El oso &
+      Se queda quieto hasta confirmarlo (3 frames, $\sim$0,3 s), se acerca
+      centrándolo, frena a $\sim$30 cm y da un pitido largo. Si lo pierde, lo
+      busca hacia el lado donde lo vio por última vez. &
+      \cod{APROXIMAR} \hacia{} \cod{ENCONTRADO} \\[2pt]
+    La mochila &
+      Se queda quieto hasta confirmarla y, con la alarma sonando, retrocede
+      $\sim$30 cm girando, sigue girando hasta darle la espalda y avanza
+      $\sim$65 cm. Después vuelve a buscar. &
+      \cod{HUIR} \\[2pt]
+    Algo a menos de 30 cm adelante &
+      Cuando va a avanzar sin el oso a la vista (huyendo o buscando), no
+      avanza: gira en el lugar hasta tener el camino libre. &
+      \cod{HUIR} o \cod{BUSCAR} \\[2pt]
+    Oso y mochila &
+      Huye: la amenaza gana siempre, incluso estando detenido frente al oso. &
+      \cod{HUIR} \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.6em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Lo que se probó}
+        {\footnotesize Dieciséis corridas con motores en dos días: diez el 1
+        de octubre y seis el 2, ya con el ultrasónico y el buzzer. Hay dos
+        videos vistos desde el robot en \cod{media/}.}
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{alertblock}{Lo que no se midió todavía}
+        {\footnotesize Las 10 corridas por escenario que piden las métricas, y
+        la autonomía del cargador. Los porcentajes de éxito no existen aún.}
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Los números del sistema, de un vistazo}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.49\textwidth}
+      \begin{tabular}{L{3.9cm}L{2.9cm}}
+        \toprule
+        \textbf{Percepción} & \\
+        \midrule
+        Modelo & YOLOv8n (COCO) \\
+        Tamaño de inferencia & 320 px \\
+        FPS del lazo completo & $\sim$10,6 ($\sim$9,9 grabando) \\
+        Inferencia por frame & $\sim$88 ms \\
+        Edad del frame al decidir & $\sim$150 ms \\
+        Alcance con el oso A4 & $\sim$1,3 m \\
+        Campo visual horizontal & $\sim$52\grad \\
+        Confirmar / perder & 3 / 5 frames \\
+        \bottomrule
+      \end{tabular}
+
+      \vspace{0.5em}
+      \begin{tabular}{L{3.9cm}L{2.9cm}}
+        \toprule
+        \textbf{Seguridad} & \\
+        \midrule
+        Vigencia del comando (Pi) & 0,40 s \\
+        Watchdog (ESP32) & 500 ms \\
+        Ultrasónico: esquivar / llegar & 30 / 20 cm \\
+        Corte de emergencia & conector de 12 V \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \begin{tabular}{L{3.9cm}L{2.9cm}}
+        \toprule
+        \textbf{Movimiento} & \\
+        \midrule
+        Rango de velocidad & 0,091 a 0,380 m/s \\
+        Velocidad máx. usada & 0,25 m/s \\
+        Giro buscando & pasos de $\sim$18\grad \\
+        Giro en régimen & 124 a 165\grad/s \\
+        Distancia de frenado & $\sim$30 cm del oso \\
+        Asimetría de los motores & 2,11 veces \\
+        Trocha (regla / efectiva) & 21,5 / 18 cm \\
+        Rueda & 60 mm de diámetro \\
+        \bottomrule
+      \end{tabular}
+
+      \vspace{0.5em}
+      \begin{tabular}{L{3.9cm}L{2.9cm}}
+        \toprule
+        \textbf{Verificación} & \\
+        \midrule
+        Verificaciones sin hardware & 79 \\
+        Corridas registradas & CSV + JSON c/u \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{Qué entra en esta versión y qué quedó afuera}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{exampleblock}{Adentro, y funcionando}
+        \begin{itemize}
+          \item Detección con YOLOv8n a bordo, a $\sim$11 FPS.
+          \item Máquina de estados con arbitraje: buscar, aproximar,
+                encontrado, huir.
+          \item Control proporcional sobre la imagen.
+          \item ESP32 con protocolo serie, compensación de zona muerta por
+                rueda y watchdog.
+          \item Alimentación portátil con dos fuentes separadas.
+          \item \textbf{Ultrasónico} al frente: no avanza contra lo que
+                tenga a menos de 30 cm. \textbf{Buzzer}: alarma y llegada.
+          \item Registro de cada corrida y análisis automático.
+          \item 79 verificaciones del comportamiento sin hardware.
+        \end{itemize}
+      \end{exampleblock}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{alertblock}{Afuera: segunda versión}
+        \begin{itemize}
+          \item \textbf{Sensores atrás y a los costados}: el robot
+                \ojo{retrocede y gira a ciegas}, y una pared muy de costado no
+                la ve.
+          \item \textbf{Encoders}: sin odometría ni lazo de velocidad.
+          \item \textbf{Frenar a 10 cm}: a esa distancia el oso no entra en el
+                cuadro; haría falta un avance final a ciegas.
+          \item \textbf{Cámara CSI} (Arducam): nunca fue vista por el Pi 5; se
+                reemplazó por una webcam USB.
+        \end{itemize}
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.5em}
+  {\footnotesize El ultrasónico y el buzzer habían quedado afuera el
+  2026-10-01, por falta de tiempo, y entraron al día siguiente (sección ``El 2
+  de octubre'').}
+\end{frame}
+
+\begin{frame}{Cómo se cubren los requisitos del módulo}
+  \relax{\footnotesize
+  \begin{tabular}{L{4.2cm}L{9.6cm}}
+    \toprule
+    \textbf{Requisito} & \textbf{Cómo se cubre} \\
+    \midrule
+    Aplicación de IA &
+      Red convolucional de detección de objetos (YOLOv8n, preentrenada en COCO)
+      haciendo inferencia en tiempo real sobre hardware embebido. \\[2pt]
+    Vehículo autónomo no tripulado &
+      Robot terrestre de tracción diferencial, con la decisión 100 \% a bordo. \\[2pt]
+    Percepción \hacia{} decisión \hacia{} actuación &
+      La cadena completa cerrada en el robot físico: cámara, red, máquina de
+      estados, ley de control, enlace serie, motores. \\[2pt]
+    Toma de decisiones &
+      Máquina de estados con arbitraje explícito de conflictos: huir tiene
+      prioridad sobre aproximarse. \\[2pt]
+    Fusión de sensores &
+      Cámara y ultrasónico. La cámara dice qué hacer y hacia dónde; el
+      ultrasónico impide avanzar contra un obstáculo y puede dar por alcanzado
+      el objetivo. Entró el 2026-10-02. \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.6em}
+  \begin{block}{Lo que el trabajo demuestra}
+    {\small Integrar \textbf{percepción con IA} en un \textbf{lazo de control
+    físico} que corre en \textbf{tiempo real} sobre \textbf{hardware real}. La
+    mitad de lo interesante salió de la última parte: motores con zonas
+    muertas y asimetrías, imágenes que se rompen, baterías que no sostienen
+    los 5 V.}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Las seis decisiones de diseño (1 de 2)}
+  \relax{\small
+  \begin{block}{D1 --- Un solo microcontrolador de bajo nivel: ESP32}
+    Se descartó usar ESP32 y PSoC5LP a la vez: dos firmwares, dos protocolos y
+    dos cadenas de herramientas duplican la superficie de fallas sin sumar
+    nada. Se programa con PlatformIO, en estilo C.
+  \end{block}
+  \begin{block}{D2 --- Modelo preentrenado en COCO, sin entrenamiento propio}
+    El ciclo captura \hacia{} etiquetado \hacia{} entrenamiento agregaba
+    riesgo de cronograma sin ser el aporte del trabajo, que es \textbf{integrar
+    la inferencia en un lazo de control físico}. Se compensa con más
+    profundidad en control, arbitraje y medición.
+  \end{block}
+  \begin{block}{D3 --- Clases por nombre: \cod{teddy bear} y \cod{backpack}}
+    Objetos medianos, compactos y de buen contraste. Las clases se declaran
+    \textbf{por nombre} y se resuelven contra \cod{model.names}: si cambia el
+    modelo, falla al arrancar en vez de detectar otra cosa en silencio.
+    \ojo{En el piso apareció un matiz:} la mochila real es \cod{suitcase} para
+    el modelo (ver la sección de la jornada final).
+  \end{block}}
+\end{frame}
+
+\begin{frame}{Las seis decisiones de diseño (2 de 2)}
+  \relax{\small
+  \begin{block}{D4 --- Huir tiene prioridad sobre aproximar}
+    Ante las dos clases a la vez, gana la conducta de seguridad. Es la regla
+    clásica de la robótica de comportamientos: los de preservación subsumen a
+    los de objetivo.
+  \end{block}
+  \begin{block}{D5 --- Encoders como extensión, no como núcleo}
+    El sistema tiene que andar en lazo abierto (PWM directo, calibrado por
+    rueda). Un PID sobre una planta descompensada arranca peor, así que la
+    calibración había que hacerla igual. Los encoders quedaron sin cablear.
+  \end{block}
+  \begin{block}{D6 --- Confirmación temporal de las detecciones}
+    Una detección aislada no cambia el estado: hacen falta \textbf{3 frames
+    seguidos} para confirmar una clase y \textbf{5 sin verla} para darla por
+    perdida. Evita que un falso positivo dispare una maniobra.
+  \end{block}}
+
+  \vspace{0.2em}
+  {\footnotesize Y dos decisiones de arquitectura que salieron al implementar:
+  la compensación de zona muerta vive \textbf{en el ESP32} y no en el Pi, y
+  las capas que \emph{deciden} no tocan hardware (ver ``Arquitectura'').}
+\end{frame}

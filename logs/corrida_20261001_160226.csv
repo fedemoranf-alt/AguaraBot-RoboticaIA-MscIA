@@ -1,0 +1,151 @@
+t_s,dt_ms,estado,fase_huir,v_lin,v_ang,buzzer,confirmadas,n_det,franjas,obj_conf,obj_ex,obj_ar,obj_w,obj_h,amz_conf,amz_ex,amz_ar,dist_cm,motivo
+0.124,124.4,BUSCAR,0,0,0,,,1,0.000,0.54,-0.055,0.0349,103,104,,,,,"posible objetivo, freno a confirmar"
+0.296,171.9,BUSCAR,0,0,0,,,1,0.000,0.51,-0.056,0.0342,102,103,,,,,"posible objetivo, freno a confirmar"
+0.394,97.9,APROXIMAR,0,0,0,,teddy bear,1,0.000,0.54,-0.056,0.0342,102,103,,,,,"objetivo confirmado, cambio a APROXIMAR"
+0.493,98.7,APROXIMAR,0,72,0,,teddy bear,1,0.000,0.46,-0.053,0.0349,102,105,,,,,ex=-0.05 ar=0.035
+0.591,98.5,APROXIMAR,0,72,0,,teddy bear,1,0.000,0.52,-0.053,0.0342,102,103,,,,,ex=-0.05 ar=0.034
+0.690,98.1,APROXIMAR,0,72,0,,teddy bear,1,0.000,0.62,-0.053,0.0342,102,103,,,,,ex=-0.05 ar=0.034
+0.791,101.2,APROXIMAR,0,72,0,,teddy bear,1,0.000,0.58,-0.055,0.0349,103,104,,,,,ex=-0.05 ar=0.035
+0.888,97.5,APROXIMAR,0,72,0,,teddy bear,1,0.000,0.69,-0.045,0.0362,107,104,,,,,ex=-0.05 ar=0.036
+0.985,97.2,APROXIMAR,0,72,0,,teddy bear,1,0.000,0.69,-0.011,0.0387,111,107,,,,,ex=-0.01 ar=0.039
+1.083,97.8,APROXIMAR,0,72,0,,teddy bear,1,0.000,0.72,0.027,0.0387,109,109,,,,,ex=+0.03 ar=0.039
+1.181,97.9,APROXIMAR,0,72,0,,teddy bear,1,0.000,0.58,0.048,0.0401,113,109,,,,,ex=+0.05 ar=0.040
+1.280,98.9,APROXIMAR,0,72,0,,teddy bear,1,0.000,0.73,0.059,0.0423,116,112,,,,,ex=+0.06 ar=0.042
+1.379,98.7,APROXIMAR,0,72,0,,teddy bear,1,0.000,0.84,0.069,0.0477,122,120,,,,,ex=+0.07 ar=0.048
+1.476,97.5,APROXIMAR,0,72,0,,teddy bear,1,0.000,0.83,0.070,0.0488,125,120,,,,,ex=+0.07 ar=0.049
+1.574,97.4,APROXIMAR,0,72,0,,teddy bear,1,0.000,0.84,0.070,0.0537,131,126,,,,,ex=+0.07 ar=0.054
+1.671,97.6,APROXIMAR,0,72,0,,teddy bear,1,0.000,0.87,0.067,0.0567,135,129,,,,,ex=+0.07 ar=0.057
+1.769,97.5,APROXIMAR,0,72,0,,teddy bear,1,0.000,0.89,0.053,0.0580,136,131,,,,,ex=+0.05 ar=0.058
+1.867,97.9,APROXIMAR,0,71,0,,teddy bear,1,0.000,0.90,0.034,0.0638,144,136,,,,,ex=+0.03 ar=0.064
+1.965,98.7,APROXIMAR,0,69,0,,teddy bear,1,0.000,0.88,0.022,0.0684,146,144,,,,,ex=+0.02 ar=0.068
+2.063,98.0,APROXIMAR,0,67,0,,teddy bear,1,0.000,0.91,0.009,0.0723,150,148,,,,,ex=+0.01 ar=0.072
+2.161,97.9,APROXIMAR,0,64,0,,teddy bear,1,0.000,0.88,-0.006,0.0807,158,157,,,,,ex=-0.01 ar=0.081
+2.258,97.2,APROXIMAR,0,60,0,,teddy bear,1,0.000,0.88,-0.019,0.0886,164,166,,,,,ex=-0.02 ar=0.089
+2.356,97.3,APROXIMAR,0,57,0,,teddy bear,1,0.000,0.90,-0.036,0.0952,169,173,,,,,ex=-0.04 ar=0.095
+2.453,97.8,APROXIMAR,0,54,0,,teddy bear,1,0.000,0.92,-0.048,0.1014,175,178,,,,,ex=-0.05 ar=0.101
+2.551,97.9,APROXIMAR,0,49,0,,teddy bear,1,0.000,0.91,-0.075,0.1138,186,188,,,,,ex=-0.07 ar=0.114
+2.648,97.2,APROXIMAR,0,44,-8,,teddy bear,1,0.000,0.92,-0.097,0.1244,194,197,,,,,ex=-0.10 ar=0.124
+2.746,97.1,APROXIMAR,0,35,-10,,teddy bear,1,0.000,0.93,-0.130,0.1435,207,213,,,,,ex=-0.13 ar=0.144
+2.844,98.1,APROXIMAR,0,30,-13,,teddy bear,1,0.000,0.93,-0.158,0.1561,215,223,,,,,ex=-0.16 ar=0.156
+2.942,97.9,APROXIMAR,0,20,-16,,teddy bear,1,0.000,0.92,-0.200,0.1774,230,237,,,,,ex=-0.20 ar=0.177
+3.043,101.0,APROXIMAR,0,12,-19,,teddy bear,1,0.000,0.91,-0.239,0.1953,239,251,,,,,ex=-0.24 ar=0.195
+3.141,98.3,ENCONTRADO,0,0,0,1,teddy bear,1,0.000,0.91,-0.284,0.2225,256,267,,,,,llegué (área)
+3.240,98.9,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.88,-0.316,0.2570,276,286,,,,,detenido
+3.338,97.9,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.93,-0.331,0.2920,296,303,,,,,detenido
+3.435,97.3,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.90,-0.175,0.3168,308,316,,,,,detenido
+3.535,99.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.93,0.061,0.3187,305,321,,,,,detenido
+3.632,97.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.89,0.189,0.3291,313,323,,,,,detenido
+3.730,97.9,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.89,0.205,0.3322,315,324,,,,,detenido
+3.829,98.3,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.90,0.206,0.3312,314,324,,,,,detenido
+3.927,98.4,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.89,0.206,0.3322,314,325,,,,,detenido
+4.028,101.4,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.90,0.205,0.3333,315,325,,,,,detenido
+4.127,98.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.89,0.206,0.3332,314,326,,,,,detenido
+4.225,98.1,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.90,0.203,0.3322,314,325,,,,,detenido
+4.323,98.1,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.90,0.208,0.3311,313,325,,,,,detenido
+4.421,98.1,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.89,0.206,0.3322,314,325,,,,,detenido
+4.522,100.2,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.90,0.206,0.3322,314,325,,,,,detenido
+4.620,98.5,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.89,0.205,0.3333,315,325,,,,,detenido
+4.718,98.2,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.90,0.206,0.3322,314,325,,,,,detenido
+4.816,98.2,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.88,0.206,0.3322,314,325,,,,,detenido
+4.915,98.4,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.89,0.205,0.3322,313,326,,,,,detenido
+5.014,99.5,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.90,0.205,0.3333,315,325,,,,,detenido
+5.115,100.4,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.89,0.206,0.3322,314,325,,,,,detenido
+5.214,98.9,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.90,0.205,0.3353,315,327,,,,,detenido
+5.313,99.0,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.90,0.208,0.3374,317,327,,,,,detenido
+5.412,99.3,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.209,0.3385,318,327,,,,,detenido
+5.511,99.3,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.211,0.3395,317,329,,,,,detenido
+5.611,99.3,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+5.712,101.2,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+5.811,99.5,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.205,0.3374,317,327,,,,,detenido
+5.911,99.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+6.010,99.4,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+6.110,99.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3385,317,328,,,,,detenido
+6.213,102.5,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.206,0.3385,318,327,,,,,detenido
+6.312,99.3,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.208,0.3374,317,327,,,,,detenido
+6.412,99.7,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.206,0.3395,318,328,,,,,detenido
+6.511,99.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+6.611,99.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+6.713,102.2,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3385,317,328,,,,,detenido
+6.813,99.2,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.208,0.3374,317,327,,,,,detenido
+6.912,99.5,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.206,0.3364,316,327,,,,,detenido
+7.012,99.9,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+7.112,99.7,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.90,0.206,0.3385,318,327,,,,,detenido
+7.213,101.9,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+7.313,99.5,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.90,0.205,0.3374,317,327,,,,,detenido
+7.412,99.4,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.90,0.208,0.3374,317,327,,,,,detenido
+7.512,99.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.205,0.3374,317,327,,,,,detenido
+7.612,99.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3385,317,328,,,,,detenido
+7.716,104.0,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.90,0.208,0.3374,317,327,,,,,detenido
+7.816,99.9,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+7.915,99.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.206,0.3385,318,327,,,,,detenido
+8.015,99.9,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.208,0.3374,317,327,,,,,detenido
+8.115,100.0,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+8.218,102.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+8.317,99.4,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+8.417,99.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.208,0.3374,317,327,,,,,detenido
+8.517,99.4,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.206,0.3385,318,327,,,,,detenido
+8.616,99.2,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.206,0.3385,318,327,,,,,detenido
+8.718,101.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.209,0.3364,316,327,,,,,detenido
+8.817,99.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+8.917,99.9,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+9.017,99.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.208,0.3374,317,327,,,,,detenido
+9.117,99.9,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.206,0.3385,318,327,,,,,detenido
+9.217,100.2,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.211,0.3385,317,328,,,,,detenido
+9.318,100.7,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+9.417,99.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.208,0.3364,317,326,,,,,detenido
+9.517,99.5,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+9.616,99.7,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+9.716,99.7,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.209,0.3364,316,327,,,,,detenido
+9.818,101.7,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.211,0.3374,317,327,,,,,detenido
+9.917,99.7,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.211,0.3374,317,327,,,,,detenido
+10.017,100.0,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.208,0.3374,317,327,,,,,detenido
+10.117,99.5,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3385,317,328,,,,,detenido
+10.216,99.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.208,0.3396,319,327,,,,,detenido
+10.316,99.5,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.209,0.3385,318,327,,,,,detenido
+10.416,100.0,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.209,0.3385,318,327,,,,,detenido
+10.516,100.0,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.206,0.3375,318,326,,,,,detenido
+10.616,99.4,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.206,0.3385,318,327,,,,,detenido
+10.715,99.7,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+10.815,99.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.211,0.3374,317,327,,,,,detenido
+10.914,99.1,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+11.017,102.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.211,0.3374,317,327,,,,,detenido
+11.117,100.2,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.209,0.3385,318,327,,,,,detenido
+11.217,99.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.209,0.3385,318,327,,,,,detenido
+11.316,99.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.209,0.3385,318,327,,,,,detenido
+11.415,99.2,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+11.519,104.1,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.211,0.3374,317,327,,,,,detenido
+11.619,100.0,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.209,0.3385,318,327,,,,,detenido
+11.719,99.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.209,0.3385,318,327,,,,,detenido
+11.818,99.5,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.206,0.3385,318,327,,,,,detenido
+11.918,99.5,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.206,0.3385,318,327,,,,,detenido
+12.021,102.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.209,0.3385,318,327,,,,,detenido
+12.121,100.1,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+12.220,99.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.211,0.3374,317,327,,,,,detenido
+12.320,99.4,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.209,0.3385,318,327,,,,,detenido
+12.419,99.4,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+12.522,102.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3364,317,326,,,,,detenido
+12.621,99.3,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+12.721,99.9,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+12.821,99.3,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+12.920,99.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.206,0.3364,316,327,,,,,detenido
+13.023,102.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.206,0.3385,318,327,,,,,detenido
+13.123,99.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.208,0.3374,317,327,,,,,detenido
+13.222,99.3,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.209,0.3364,316,327,,,,,detenido
+13.321,99.2,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+13.421,99.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+13.522,101.7,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.90,0.208,0.3374,317,327,,,,,detenido
+13.622,99.2,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+13.721,99.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+13.821,99.3,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3364,317,326,,,,,detenido
+13.920,99.7,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.205,0.3374,317,327,,,,,detenido
+14.022,101.5,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+14.122,99.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+14.221,99.7,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.206,0.3364,316,327,,,,,detenido
+14.321,100.0,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+14.421,99.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.206,0.3385,318,327,,,,,detenido
+14.525,103.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+14.625,99.8,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3364,317,326,,,,,detenido
+14.724,99.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.208,0.3374,317,327,,,,,detenido
+14.824,99.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.208,0.3374,317,327,,,,,detenido
+14.924,99.6,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.92,0.208,0.3374,317,327,,,,,detenido
+15.025,101.2,ENCONTRADO,0,0,0,,teddy bear,1,0.000,0.91,0.206,0.3375,318,326,,,,,detenido

@@ -1,0 +1,126 @@
+Ley de control: KP_ANG=0.30 KP_LIN=2.40 area_obj=0.350 zona_muerta=0.080
+  v_ang tope 60  |  v_lin techo efectivo 72 (lo fija V_LIN_MAX; V_LIN_MAX=72)
+  v_lin=72  ->  0.300 m/s
+Cámara: usb (OpenCV, /dev/video0)  640x480
+yolov8n.pt · imgsz=320 · conf=0.35 · [teddy bear = 77, backpack = 24] · suitcase cuenta como backpack · conf backpack = 0.2
+Enlace(/dev/ttyUSB0 @ 115200 baudios)
+
+Arranca en 5 s — apoyá el robot y soltalo.
+  5...  4...  3...  2...  1...  ¡vamos!    
+Registro: /home/admin/TPF/logs/corrida_20261001_170756.csv
+[   1.0s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[   2.0s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[   3.1s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[   4.1s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[   5.1s] BUSCAR      v_lin=  +0 v_ang= +35  (barriendo)  dist=--
+[   6.1s] BUSCAR      v_lin=  +0 v_ang= +35  (barriendo)  dist=--
+[   7.1s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[   8.1s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[   9.1s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  10.1s] BUSCAR      v_lin=  +0 v_ang= +35  (barriendo)  dist=--
+[  11.1s] BUSCAR      v_lin=  +0 v_ang= +35  (barriendo)  dist=--
+[  12.1s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  13.1s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  14.1s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  15.1s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  16.2s] BUSCAR      v_lin=  +0 v_ang= +35  (barriendo)  dist=--
+[  17.2s] BUSCAR      v_lin= +30 v_ang=  +0  (reubicando)  dist=--
+[  18.2s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  19.2s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  20.2s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  21.2s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  22.2s] BUSCAR      v_lin=  +0 v_ang= +35  (barriendo)  dist=--
+[  23.2s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  24.3s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  25.3s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  26.3s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  27.3s] BUSCAR      v_lin=  +0 v_ang= +35  (barriendo)  dist=--
+[  28.3s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  29.3s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  30.3s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  31.3s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  32.4s] BUSCAR      v_lin=  +0 v_ang= +35  (barriendo)  dist=--
+[  33.4s] BUSCAR      v_lin=  +0 v_ang= +35  (barriendo)  dist=--
+[  34.4s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  35.4s] BUSCAR      v_lin= +30 v_ang=  +0  (reubicando)  dist=--
+[  36.4s] BUSCAR      v_lin=  +0 v_ang=  +0  (posible objetivo, freno a confirmar)  dist=--
+  >> BUSCAR      -> APROXIMAR    objetivo confirmado, cambio a APROXIMAR
+[  37.4s] APROXIMAR   v_lin= +72 v_ang= -10  (ex=-0.34 ar=0.038)  dist=--
+[  38.5s] APROXIMAR   v_lin= +65 v_ang= -10  (ex=-0.35 ar=0.078)  dist=--
+[  39.5s] APROXIMAR   v_lin= +41 v_ang= -20  (ex=-0.72 ar=0.181)  dist=--
+  >> APROXIMAR   -> BUSCAR       objetivo perdido, vuelvo a BUSCAR
+[  40.5s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  41.6s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  42.6s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  43.6s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  44.6s] BUSCAR      v_lin=  +0 v_ang= +35  (barriendo)  dist=--
+[  45.6s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  46.6s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  47.6s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  48.6s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  49.7s] BUSCAR      v_lin=  +0 v_ang= +35  (barriendo)  dist=--
+[  50.7s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  51.7s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  52.7s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  53.7s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  54.7s] BUSCAR      v_lin=  +0 v_ang= +35  (barriendo)  dist=--
+[  55.8s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  56.8s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  57.8s] BUSCAR      v_lin= +30 v_ang=  +0  (reubicando)  dist=--
+[  58.8s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  59.8s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  60.8s] BUSCAR      v_lin=  +0 v_ang= +35  (barriendo)  dist=--
+[  61.8s] BUSCAR      v_lin=  +0 v_ang= +35  (barriendo)  dist=--
+[  62.8s] BUSCAR      v_lin=  +0 v_ang=  +0  (mirando)  dist=--
+[  63.8s] BUSCAR      v_lin=  +0 v_ang=  +0  (posible objetivo, freno a confirmar)  dist=--
+  >> BUSCAR      -> APROXIMAR    objetivo confirmado, cambio a APROXIMAR
+[  64.9s] APROXIMAR   v_lin= +13 v_ang=  +6  (ex=+0.21 ar=0.295)  dist=--
+  >> APROXIMAR   -> ENCONTRADO   llegué (área)
+[  65.9s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  66.9s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  67.9s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  68.9s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  69.9s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  70.9s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  71.9s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  73.0s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  74.0s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  75.0s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  76.0s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  77.0s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  78.1s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  79.1s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  80.1s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  81.1s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  82.1s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  83.1s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  84.1s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  85.2s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  86.2s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  87.2s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  88.2s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+[  89.2s] ENCONTRADO  v_lin=  +0 v_ang=  +0  (detenido)  dist=--
+
+Se cumplió --duracion
+
+==============================================================
+Corrida: 888 ciclos en 90.0 s  ->  9.86 FPS del lazo completo
+
+Tiempo por estado:
+  BUSCAR        60.2 s
+  ENCONTRADO    24.7 s
+  APROXIMAR      5.1 s
+
+Transiciones: 4
+    36.6s  BUSCAR      -> APROXIMAR    objetivo confirmado, cambio a APROXIMAR
+    40.5s  APROXIMAR   -> BUSCAR       objetivo perdido, vuelvo a BUSCAR
+    64.0s  BUSCAR      -> APROXIMAR    objetivo confirmado, cambio a APROXIMAR
+    65.3s  APROXIMAR   -> ENCONTRADO   llegué (área)
+Estado final: ENCONTRADO
+Registro: /home/admin/TPF/logs/corrida_20261001_170756.csv (888 filas)
+Video:    /home/admin/TPF/logs/corrida_20261001_170756.avi
+
+== voltaje durante la corrida (../logs/volt_d14_demo1.txt) ==
+    206 throttled=0x0
+EXT5V_V min 4.91914000  max 5.11612000
+17:09:32.736 throttled=0x0 volt(24)=5.06654000V temp=67.5'C

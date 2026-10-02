@@ -1,0 +1,254 @@
+% =============================================================================
+\section{Problemas, soluciones y el hilo conductor}
+% =============================================================================
+
+\begin{frame}{Lo que falló (1 de 3): potencia y motores}
+  \relax{\footnotesize
+  \begin{tabular}{L{3.9cm}L{4.5cm}L{5.4cm}}
+    \toprule
+    \textbf{Síntoma} & \textbf{Causa} & \textbf{Qué se hizo} \\
+    \midrule
+    A los motores les llega menos tensión de la esperada &
+      El L298 se queda con 2,5 V, no con los 1,4 estimados &
+      Se asumió 9,5 V en bornes y se recalculó todo \\[2pt]
+    Las ruedas no arrancan al mismo PWM y no giran parejas &
+      Los dos motores tienen reducciones distintas ($\sim$2,1:1) &
+      Una recta de calibración por rueda, con piso y techo propios, en el
+      firmware \\[2pt]
+    Con la recta cargada, la derecha se plantaba a comandos bajos &
+      Se usó como piso el corte con cero del ajuste (36), y el duty de calado
+      real era $\sim$98 &
+      El piso es el duty de la mínima velocidad que la rueda sostiene \\[2pt]
+    En el piso, la rueda izquierda pita y no gira &
+      Calibración hecha con las ruedas al aire: la rueda de menos par recibía
+      el menor duty &
+      Recalibración apoyado: la carga suma un escalón de duty \\[2pt]
+    Con batería, el FPS cae de 11 a 8,8 &
+      La salida de 5 V de la UPS se cae con la carga de YOLO &
+      Cargador aparte para el Pi; la UPS sólo para los motores \\[2pt]
+    El Pi se reinicia en bucle con el cargador &
+      Por USB-C falla la negociación de carga rápida &
+      Conectarlo por la salida USB-A \\
+    \bottomrule
+  \end{tabular}}
+\end{frame}
+
+\begin{frame}{Lo que falló (2 de 3): la cámara y la imagen}
+  \relax{\footnotesize
+  \begin{tabular}{L{3.9cm}L{4.5cm}L{5.4cm}}
+    \toprule
+    \textbf{Síntoma} & \textbf{Causa} & \textbf{Qué se hizo} \\
+    \midrule
+    El Pi no ve la cámara CSI &
+      Falla eléctrica (cable adaptador o módulo): nada en el bus I2C &
+      Se descartó por tiempo; entró una webcam USB \\[2pt]
+    El Pi recién grabado no aparece en la red &
+      El grabador de tarjetas no escribió la configuración &
+      Scripts que verifican y reparan la SD antes de arrancar \\[2pt]
+    Con los motores andando, cero detecciones y 2,3 FPS &
+      El ruido rompe la transmisión USB; YUYV no tolera pérdidas &
+      MJPG, y webcam y ESP32 en controladores distintos \\[2pt]
+    Girando, el oso pasa por delante y no lo ve &
+      A 124\grad/s la imagen sale movida &
+      Barrido a pasos: mirar quieto, girar un tramo \\[2pt]
+    Con el robot \emph{quieto}, 69 de 71 frames en franjas &
+      Paquetes USB perdidos, de a ratos. \ojo{Causa sin aislar} &
+      Cada corrida registra la salud de la imagen; pendiente probar el límite
+      de corriente USB y el cable \\[2pt]
+    El entorno de Python pesa 5,6 GB &
+      \cod{pip} trae la versión de \cod{torch} con CUDA, que el Pi no usa &
+      Pendiente: reinstalar la versión de CPU \\
+    \bottomrule
+  \end{tabular}}
+\end{frame}
+
+\begin{frame}{Lo que falló (3 de 3): el comportamiento}
+  \relax{\footnotesize
+  \begin{tabular}{L{4.2cm}L{4.5cm}L{5.1cm}}
+    \toprule
+    \textbf{Síntoma} & \textbf{Causa} & \textbf{Qué se hizo} \\
+    \midrule
+    Las huidas se repiten solas (visto sin robot) &
+      El confirmador sostiene la mochila 5 frames después de dejar de verla &
+      Período sordo de 2 s tras cada huida \\[1pt]
+    El robot nunca llegaría a la velocidad máxima (ídem) &
+      La ganancia limitaba antes que el techo &
+      Ganancia y área objetivo calibradas juntas \\[1pt]
+    \cod{main.py} revienta al arrancar con la cámara real &
+      Un formato de texto mal armado, en una línea que sin cámara no se ejecutaba &
+      Corregido; ninguna verificación podía verlo \\[1pt]
+    El barrido le pasa de largo al oso &
+      Pasos de 32\grad{} y pulsos con retardo al azar &
+      Pasos de 18\grad; los cambios de comando salen en el acto \\[1pt]
+    Llega torcido, o pierde el oso por un costado &
+      Ganancia de giro mal ajustada; una rueda que se detenía o invertía &
+      \cod{KP_ANG} 0,5; giro acotado a 0,7 veces el avance; más despacio \\[1pt]
+    No huye de la mochila &
+      Es \cod{suitcase} para el modelo; confianza al borde del umbral; giraba
+      antes de mirar &
+      Alias, umbral propio, frenar al verla, mirar primero \\[1pt]
+    Huye de costado &
+      El giro de media vuelta deshacía el giro del retroceso &
+      Las dos fases giran para el mismo lado \\
+    \bottomrule
+  \end{tabular}}
+\end{frame}
+
+\begin{frame}{El hilo conductor del trabajo}
+  \begin{alertblock}{}
+    \centering\large
+    Casi todo lo que falló fue \textbf{un número correcto usado fuera del
+    contexto donde vale}.
+  \end{alertblock}
+
+  \vspace{0.5em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Qué quiere decir}
+        {\small Ningún número estaba ``mal''. La caída del L298 de la hoja de datos
+        es cierta para ese ensayo. La calibración al aire es exacta al aire.
+        La clase \cod{backpack} es correcta para las fotos con las que se
+        entrenó el modelo. Lo que falla es \textbf{llevar el número a otro
+        contexto} sin volver a medir.}
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Para qué sirve verlo así}
+        {\small Convierte una lista de tropiezos en un método: al lado de cada
+        número, anotar \textbf{en qué condiciones se midió}. Es lo que hacen
+        los comentarios de \cod{config.py}, y es la idea que organiza el
+        informe.}
+      \end{block}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.5em}
+  {\footnotesize Van \textbf{veintiún casos} anotados en la bitácora. Las tres
+  diapositivas que siguen los listan. Los primeros son de física; los del
+  medio, de bancos de prueba; los últimos, de software y de diagnóstico.}
+\end{frame}
+
+\begin{frame}{Los veintiún casos (1 a 7)}
+  \relax{\footnotesize
+  \begin{tabular}{L{0.5cm}L{4.4cm}L{8.9cm}}
+    \toprule
+    & \textbf{El número} & \textbf{El contexto donde dejó de valer} \\
+    \midrule
+    1 & Caída del L298: 1,4 V & La de la hoja de datos, en sus condiciones.
+        El módulo real, con estos motores, se queda con 2,5 V. \\[1pt]
+    2 & ``350 rpm'' en la chapa & Vale para una de las dos unidades. La otra
+        tiene la mitad de reducción. \\[1pt]
+    3 & Piso de la recta: 36 & Es el corte con cero de un ajuste hecho entre
+        duty 211 y 352. Cerca de velocidad cero la fricción no es lineal: el
+        calado real estaba en $\sim$98. \\[1pt]
+    4 & Techo de velocidad: 0,34 & Se dedujo cuando el duty escalaba desde
+        cero. Con el mapa calibrado, el mismo 0,30 m/s es un comando de 72. \\[1pt]
+    5 & \cod{V_LIN_MAX} = 72 & Correcto, pero no actuaba: la ganancia limitaba
+        en 30. Un parámetro que parecía gobernar algo y no llegaba a hacerlo. \\[1pt]
+    6 & \cod{M_PERDER} = 5 & Existe para no perder el oso por un frame malo.
+        Después de una maniobra que cambia \emph{a propósito} lo que mira la
+        cámara, sostiene una mochila que ya nadie ve. \\[1pt]
+    7 & ``El Pi recorta a los 30 s'' & Cierto con cuatro bucles vacíos; falso
+        con YOLO real. No cambió el Pi: cambió la carga con la que se lo
+        interrogó. \\
+    \bottomrule
+  \end{tabular}}
+\end{frame}
+
+\begin{frame}{Los veintiún casos (8 a 14)}
+  \relax{\footnotesize
+  \begin{tabular}{L{0.5cm}L{4.4cm}L{8.9cm}}
+    \toprule
+    & \textbf{El número} & \textbf{El contexto donde dejó de valer} \\
+    \midrule
+    8 & Captura: 0,6 ms & Es el costo de sacar el frame de la cola, no la
+        \emph{edad} del frame, que es de 36 a 64 ms. \\[1pt]
+    9 & \cod{AREA_OBJETIVO} = 0,066 & Vale para el oso de 6,5 cm. Con uno de
+        20 cm sería frenar a 1 m. \emph{El primero anticipado en vez de
+        sufrido.} \\[1pt]
+    10 & Área $\propto 1/d^2$ & No se sostiene en todo el rango medido: por eso
+        el área objetivo es un valor medido y no una extrapolación. Y la
+        primera prueba del watchdog alteraba lo que medía. \\[1pt]
+    11 & ``5 V / 3 A'' y ``10 000 mAh'' & La primera es cierta sólo por USB-A.
+        La segunda es capacidad, no lo que la salida sostiene con carga. \\[1pt]
+    12 & \cod{N_CONFIRMAR} = 3 & Supone una cámara quieta. Con el barrido
+        girando no había ni un frame nítido. \emph{Anticipado por el
+        simulador, y peor en el piso.} \\[1pt]
+    13 & Techo de la rueda izquierda: 238 & Iguala velocidades sin carga, y es
+        el equivocado para mover el robot: le da el menor duty a la rueda de
+        menos par. \\[1pt]
+    14 & Trocha: 21,5 cm & Medida con regla, correcta, y no es la que gira el
+        robot: la efectiva es 18 cm. \\
+    \bottomrule
+  \end{tabular}}
+\end{frame}
+
+\begin{frame}{Los veintiún casos (15 a 21)}
+  \relax{\footnotesize
+  \begin{tabular}{L{0.5cm}L{4.4cm}L{8.9cm}}
+    \toprule
+    & \textbf{El número} & \textbf{El contexto donde dejó de valer} \\
+    \midrule
+    15 & ``YUYV funciona'' & Con el robot elevado y los motores casi sin carga.
+        En cuanto empujan, deja de funcionar. \\[1pt]
+    16 & ``El ruido de los motores rompe la imagen'' & Un diagnóstico cierto
+        para lo que se midió ese día, escrito como \emph{la} causa. Al día
+        siguiente la imagen se rompía con los motores parados. \\[1pt]
+    17 & La clase \cod{backpack} & Correcta para mochilas en una espalda, vistas
+        a la altura de una persona. Apoyada en el piso y vista desde abajo, es
+        una valija. \\[1pt]
+    18 & Giro: 165\grad/s & Es la velocidad de régimen, medida sobre cuatro
+        vueltas. Una maniobra de un segundo que arranca desde la marcha atrás
+        dio 110\grad. \\[1pt]
+    19 & Trocha efectiva: 18 cm & Medida girando en el lugar. Avanzando, el
+        giro realizado es más o menos la mitad. \\[1pt]
+    20 & ``60 verificaciones pasan'' & Una de ellas exigía que la mochila no
+        frenara el barrido, y era la razón por la que el robot no huía.
+        Verificar dice que el código hace lo decidido, no que la decisión
+        fuera buena. \\[1pt]
+    21 & ``0 falsas alarmas en 742 frames'' & En un pasillo. Una hora después,
+        en un hall con sillones negros, aparecieron tres. \emph{Anticipado y
+        confirmado el mismo día.} \\
+    \bottomrule
+  \end{tabular}}
+\end{frame}
+
+\begin{frame}{Las lecciones de método}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Una capa por vez}
+        Escalones de comando antes que el comportamiento; duty crudo antes que
+        el protocolo; un frame quieto antes que una corrida. En el piso, cada
+        arreglo destapó el siguiente: mientras la rueda no giraba era
+        imposible ver que la cámara se rompía.
+      \end{block}
+      \begin{block}{Lo que no depende de la pieza que falta}
+        Ante cada bloqueo, preguntar qué parte del problema se puede resolver
+        igual. El comportamiento se verificó sin robot, y el tamaño de
+        inferencia se decidió sin cámara.
+      \end{block}
+      \begin{block}{\dots y anotar la deuda}
+        Trabajar sin la pieza adelanta, pero deja algo sin probar. Conviene
+        escribir \emph{qué} mientras se la contrae.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Medir la entrada barata antes de creerle a la salida cara}
+        La predicción más alarmante del simulador (27 \% de éxito) era la más
+        sensible a un número estimado de una foto. Con la trocha medida daba
+        78 \%.
+      \end{block}
+      \begin{block}{Un instrumento puede alterar lo que mide}
+        Abrir el puerto para ``mirar'' reinicia el ESP32. La carga sintética
+        calienta más que la real. Cada herramienta de medición tiene su propio
+        contexto.
+      \end{block}
+      \begin{block}{Pruebas con motores: anunciadas}
+        Cada corrida se describe antes (qué va a hacer el robot, cuánto
+        espacio necesita) y se lanza sólo con el ``listo'' de quien está al
+        lado, con la mano en los 12 V.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}

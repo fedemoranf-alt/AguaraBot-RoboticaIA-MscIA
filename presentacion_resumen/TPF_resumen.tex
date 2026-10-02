@@ -1,0 +1,116 @@
+% =============================================================================
+%  TPF -- IA aplicada a la Robótica
+%  Resumen completo del trabajo, para uso propio: cómo funciona la
+%  arquitectura, qué hace cada archivo, qué hace cada parámetro y de dónde
+%  salió cada número. Estado al 2026-10-02 (demo completa andando en el piso,
+%  con ultrasónico y buzzer).
+%
+%  Compilar (dos pasadas, por el índice):
+%      pdflatex TPF_resumen.tex
+%      pdflatex TPF_resumen.tex
+%  o bien:  latexmk -pdf TPF_resumen.tex
+%
+%  El contenido está partido en secciones/*.tex; las imágenes en figuras/.
+%  Las fuentes de cada dato son PLAN.md (§13, la bitácora), HARDWARE.md,
+%  RUNBOOK.md y los comentarios de src/config.py.
+% =============================================================================
+\documentclass[aspectratio=169,9pt]{beamer}
+
+\usetheme{metropolis}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish,es-noquoting]{babel}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,fit,backgrounds,calc,
+                decorations.pathreplacing}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{graphicx}
+% Sin ligaduras en la tipografía de máquina: si no, "--grabar" sale con un
+% solo guión y ">>" como comillas angulares.
+\usepackage{microtype}
+\DisableLigatures{encoding = T1, family = tt*}
+
+\graphicspath{{figuras/}}
+
+% ------------------------------------------------------------------ Colores
+% La misma paleta que la presentación de arquitectura y que las figuras del
+% cuaderno de calibración: azul = rueda izquierda, naranja = rueda derecha.
+\definecolor{azul}{HTML}{2A78D6}
+\definecolor{naranja}{HTML}{EB6834}
+\definecolor{gris}{HTML}{52514E}
+\definecolor{grisclaro}{HTML}{898781}
+\definecolor{critico}{HTML}{D03B3B}
+\definecolor{verde}{HTML}{0CA30C}
+\definecolor{ambar}{HTML}{FAB219}
+
+\setbeamercolor{frametitle}{bg=azul}
+\setbeamercolor{progress bar}{fg=naranja}
+\setbeamercolor{alerted text}{fg=critico}
+\setbeamertemplate{frame numbering}[fraction]
+\metroset{block=fill}
+
+% Densidad: son diapositivas de consulta, con más texto que una presentación
+% para proyectar. Bloques compactos y márgenes angostos.
+\setbeamerfont{block title}{size=\small}
+\setbeamerfont{block body}{size=\small}
+\setbeamerfont{itemize/enumerate body}{size=\small}
+\setbeamerfont{itemize/enumerate subbody}{size=\footnotesize}
+\setbeamersize{text margin left=6mm, text margin right=6mm}
+\addtobeamertemplate{block begin}{\vspace{-0.25em}}{}
+\addtobeamertemplate{block end}{}{\vspace{-0.55em}}
+\addtobeamertemplate{block alerted begin}{\vspace{-0.25em}}{}
+\addtobeamertemplate{block alerted end}{}{\vspace{-0.55em}}
+\addtobeamertemplate{block example begin}{\vspace{-0.25em}}{}
+\addtobeamertemplate{block example end}{}{\vspace{-0.55em}}
+\setlength{\parskip}{0.25em}
+\setlength{\tabcolsep}{4pt}
+
+% ------------------------------------------------------------------ Atajos
+\newcommand{\autornombre}{Federico Morán}
+\newcommand{\listo}{\textcolor{verde}{$\blacksquare$}}
+\newcommand{\curso}{\textcolor{ambar}{$\blacksquare$}}
+\newcommand{\pend}{\textcolor{grisclaro}{$\square$}}
+\newcommand{\hacia}{$\rightarrow$}
+\newcommand{\grad}{\ensuremath{^\circ}}
+\newcommand{\destaca}[1]{\textcolor{azul}{\textbf{#1}}}
+\newcommand{\ojo}[1]{\textcolor{critico}{\textbf{#1}}}
+% Código en línea: nombres de archivo, parámetros, comandos. \detokenize deja
+% pasar los guiones bajos sin escaparlos. No puede llevar % ni # adentro.
+\newcommand{\cod}[1]{\texttt{\detokenize{#1}}}
+% Fila de una tabla de parámetros: nombre, valor, qué hace, de dónde sale.
+\newcommand{\fila}[4]{\cod{#1} & #2 & #3 & #4 \\}
+% Columnas de párrafo alineadas a la izquierda, sin justificar.
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+% ------------------------------------------------------------------ Portada
+\title{Robot autónomo de aproximación y evasión basado en visión}
+\subtitle{Resumen completo del trabajo: arquitectura, archivos, parámetros y
+          todo lo que se midió hasta hoy}
+\author{\autornombre}
+\institute{TPF --- IA aplicada a la Robótica \\ Maestría en Inteligencia Artificial}
+\date{Estado al 2 de octubre de 2026}
+
+\begin{document}
+
+\maketitle
+
+\input{secciones/01_panorama}
+\input{secciones/02_hardware}
+\input{secciones/03_arquitectura}
+\input{secciones/04_archivos}
+\input{secciones/05_firmware}
+\input{secciones/06_estados}
+\input{secciones/07_control}
+\input{secciones/08_parametros}
+\input{secciones/09_protocolo}
+\input{secciones/10_scripts}
+\input{secciones/11_historia}
+\input{secciones/12_problemas}
+\input{secciones/13_jornada}
+\input{secciones/13b_ultrasonico}
+\input{secciones/14_operacion}
+
+\end{document}

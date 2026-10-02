@@ -1,0 +1,298 @@
+% =============================================================================
+\section{La jornada final: 1 de octubre, en el piso}
+% =============================================================================
+
+\begin{frame}{El día, corrida por corrida}
+  \relax{\footnotesize
+  \begin{tabular}{L{1.0cm}L{3.3cm}L{9.3cm}}
+    \toprule
+    \textbf{Hora} & \textbf{Prueba} & \textbf{Qué pasó} \\
+    \midrule
+    15:21 & Aproximación 1 (oso a 90\grad) &
+      25 s buscando, \textbf{cero detecciones}. Le pasó de largo al oso. \\[1pt]
+    15:28 & (sin motores) &
+      Con el robot quieto, 69 de 71 frames llegan en franjas. \\[1pt]
+    16:02 & Aproximación de frente &
+      \textbf{Primera aproximación completa}: 3,1 s. Queda a 37 cm (cinta). \\[1pt]
+    16:16 & Paso de giro (20 pulsos) &
+      El paso de 0,40 s renueva el 61 \% de la imagen; el de 0,25 s, el 35 \%. \\[1pt]
+    16:23 & Comportamiento completo &
+      Busca, encuentra, se acerca, frena. Termina torcido. \\[1pt]
+    16:29 & Comportamiento completo &
+      Ídem, bien centrado. Queda a $\sim$28 cm. \\[1pt]
+    16:40 & Huida 1 &
+      No huye: vio la mochila dos frames y el barrido giró igual. \\[1pt]
+    16:43 & Huida 2 &
+      No huye: la confianza de la mochila estaba al borde del umbral. \\[1pt]
+    16:50 & Huida 3 &
+      \textbf{Huye}, pero gira $\sim$110\grad{} y se va de costado. \\[1pt]
+    16:54 & Huida 4 &
+      Huida completa. Gira algo más de media vuelta. \\[1pt]
+    17:07 & Demo completa 1 (90 s) &
+      Oso a 2 m: tarda 36 s en verlo, lo pierde una vez, llega a los 65 s. \\[1pt]
+    17:17 & Demo completa 2 (90 s) &
+      Cuatro huidas ante la mochila real, tres pérdidas por mover el oso a
+      mano, llegada final. \textbf{Es la del video.} \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.3em}
+  {\footnotesize Entre corrida y corrida se cambió código: al final del día había
+  60 verificaciones (eran 54), ocho parámetros con otro valor y dos nuevos.}
+\end{frame}
+
+\begin{frame}{La imagen rota (1 de 2): qué se veía}
+  \begin{columns}[c,onlytextwidth]
+    \begin{column}{0.32\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{img_sana.jpg}
+
+      {\scriptsize Sobre el escritorio: sana. El oso con confianza 0,91 en todos
+      los frames.}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{img_rota_37.jpg}
+
+      {\scriptsize En el piso, \textbf{robot quieto y 12 V desenchufados}: 37 \% de
+      las filas en franja. El oso está detrás.}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{img_rota_63.jpg}
+
+      {\scriptsize El peor frame de esa medición: 63 \% de las filas.}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.5em}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Qué son las franjas}
+        Con MJPG, cuando se pierde un paquete USB falta un tramo del JPEG, y
+        el decodificador rellena con gris hasta el próximo marcador de
+        reinicio. El frame llega ``entero'' pero YOLO no reconoce nada detrás.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Por qué importó tanto}
+        La primera corrida no vio el oso, y la explicación a la vista era el
+        paso de giro. Mirar un frame quieto antes de tocar el paso evitó
+        ``arreglar'' el barrido con la cámara ciega.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{La imagen rota (2 de 2): qué se descartó y qué no}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.40\textwidth}
+      \centering
+      \includegraphics[width=0.80\textwidth]{grilla_rota.jpg}
+
+      {\scriptsize 15:28 --- 69 de 71 frames rotos.}
+
+      \vspace{0.3em}
+      \includegraphics[width=0.80\textwidth]{grilla_limpia.jpg}
+
+      {\scriptsize 15:52 --- 0 de 606. Nadie tocó los cables.}
+    \end{column}
+    \begin{column}{0.57\textwidth}
+      \relax{\footnotesize
+      \begin{block}{Descartado con mediciones}
+        \begin{itemize}
+          \item El PWM de los motores: pasa con los motores parados.
+          \item La fuente de 12 V: igual con la UPS desenchufada.
+          \item La carga del procesador: se rompe capturando sin YOLO.
+          \item La alimentación del Pi: \cod{0x0}, 4,97 a 5,14 V.
+          \item El ancho de banda USB: negocia el máximo y usa la octava parte.
+          \item La cámara en sí: en los ratos buenos, 150 de 150 frames sanos.
+        \end{itemize}
+      \end{block}
+      \begin{block}{Lo que sí se sabe}
+        Son \textbf{paquetes USB perdidos}: con la traza del driver, el kernel
+        registra cientos en los ratos malos y ninguno en los buenos.
+      \end{block}
+      \begin{alertblock}{Lo que no se sabe: la causa}
+        Quedan el cable o conector de la webcam y el límite de 600 mA de los
+        USB. El problema \textbf{desapareció solo} antes de poder aislarlo.
+        Puede volver.
+      \end{alertblock}}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Medir el paso de giro con la propia cámara}
+  \centering
+  \includegraphics[width=0.55\textwidth]{paso_giro.jpg}
+
+  \vspace{0.2em}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Qué muestra}
+        Un frame por pausa, con el robot quieto, a lo largo de 20 pulsos de
+        giro en cuatro tandas. Comparando cada frame con el anterior
+        (emparejando puntos de la mitad de arriba, que es lo lejano) sale
+        cuántos píxeles se corrió la escena.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Qué se sacó}
+        \begin{itemize}
+          \item El paso vigente renovaba el 61 \% de la imagen: demasiado.
+          \item El oso reaparece en el mismo lugar tras 15 pasos y pico: una
+                vuelta son $\sim$4400 px, o sea un campo visual de
+                \textbf{$\sim$52\grad}.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{El comportamiento completo, visto desde el robot}
+  \relax{\footnotesize
+  \begin{columns}[c,onlytextwidth]
+    \begin{column}{0.43\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{aprox_a.jpg}
+
+      \vspace{0.2em}
+      \includegraphics[width=\textwidth]{aprox_b.jpg}
+    \end{column}
+    \begin{column}{0.55\textwidth}
+      \begin{block}{Qué se ve (corrida de las 16:29)}
+        Arriba a la izquierda, el último paso del barrido. El oso entra por el
+        borde derecho, el robot se queda quieto (``posible objetivo''), lo
+        confirma y avanza. En las filas siguientes el oso va hacia el centro
+        mientras crece, hasta que el robot frena y queda detenido.
+      \end{block}
+      \begin{block}{Los números de esa corrida}
+        15 pasos de barrido; confirmado 0,2 s después de verlo; 2,3 s de
+        aproximación; el error lateral bajó de $+0{,}73$ a cero en 2 s sin
+        cruzarse de lado. Cada cuadro lleva el frame, el tiempo y el motivo
+        del comando.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{La mochila que resultó ser una valija}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.36\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{mochila.jpg}
+
+      {\scriptsize Lo que ve el robot: la mochila a 1 m, desde el piso. Para
+      YOLOv8n, \cod{suitcase} con confianza 0,60.}
+    \end{column}
+    \begin{column}{0.61\textwidth}
+      \relax{\footnotesize
+      \begin{block}{Cómo se supo}
+        La cámara la veía perfecta y \cod{demo.sh ver} decía ``nada''.
+        \cod{que_ve.py} le preguntó al modelo por \emph{todas} las clases:
+        \cod{suitcase} en 15 de 15 frames, \cod{backpack} en ninguno.
+      \end{block}
+      \begin{block}{Por qué}
+        El modelo aprendió mochilas colgadas de una espalda, vistas a la altura
+        de una persona. Apoyada en el piso y mirada desde abajo, con la tapa
+        enrollada, se parece más a una valija.
+      \end{block}
+      \begin{block}{Qué se hizo}
+        \begin{itemize}
+          \item \textbf{Alias}: \cod{suitcase} cuenta como la amenaza.
+          \item \textbf{Umbral propio de 0,20}: a 1,2 m la confianza baja a
+                0,32--0,41, justo en el umbral general de 0,35.
+        \end{itemize}
+      \end{block}
+      \begin{alertblock}{El costo}
+        Con 0,20, objetos oscuros grandes dan frames sueltos de falsa alarma:
+        un marco de puerta, unos sillones negros. Uno solo no dispara nada
+        (hacen falta 3 seguidos), pero hay que mirar el fondo de la sala.
+      \end{alertblock}}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{La huida, vista desde el robot}
+  \relax{\footnotesize
+  \begin{columns}[c,onlytextwidth]
+    \begin{column}{0.43\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{huir_a.jpg}
+
+      \vspace{0.2em}
+      \includegraphics[width=\textwidth]{huir_b.jpg}
+    \end{column}
+    \begin{column}{0.55\textwidth}
+      \begin{block}{Qué se ve (corrida de las 16:54)}
+        Primera fila: retrocediendo, con la mochila alejándose y corriéndose
+        hacia un borde (el robot gira mientras retrocede). Segunda fila: el
+        giro en el lugar, con la imagen movida. De la tercera en adelante:
+        avanzando, ya de espaldas, hasta quedar cerca de una pared.
+      \end{block}
+      \begin{block}{Los cuatro intentos}
+        \begin{enumerate}
+          \item No frenaba al ver la mochila sin confirmar.
+          \item Confianza al borde del umbral; giraba antes de mirar.
+          \item La fase 2 giraba al revés que la 1: $\sim$110\grad.
+          \item Bien. Con 1,3 s se pasó de media vuelta; quedó en 1,2 s.
+        \end{enumerate}
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{La demo completa (la del video)}
+  \relax{\footnotesize
+  \begin{columns}[c,onlytextwidth]
+    \begin{column}{0.43\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{demo2_a.jpg}
+
+      \vspace{0.2em}
+      \includegraphics[width=\textwidth]{demo2_b.jpg}
+    \end{column}
+    \begin{column}{0.55\textwidth}
+      \begin{block}{Qué se ve}
+        Momentos de la corrida de 90 s, en un espacio abierto. Arriba: la
+        mochila enfrente al arrancar (huye), y alguien moviendo el oso. Abajo:
+        la mochila puesta junto al oso (caja naranja, cortada por el borde)
+        dispara la huida aunque el robot vaya hacia el oso; después la mochila
+        sola, y la llegada final.
+      \end{block}
+      \begin{block}{Cómo leer esa corrida}
+        Las cuatro huidas fueron ante la mochila real. Las tres veces que
+        ``perdió'' el oso, alguien lo estaba moviendo con la mano. Llegó a
+        \cod{ENCONTRADO} a los 85 s, a unos 26 cm. El video está en
+        \cod{media/}.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{Lo que cambió ese día}
+  \relax{\footnotesize
+  \begin{tabular}{L{3.4cm}L{1.7cm}L{1.7cm}L{6.8cm}}
+    \toprule
+    \textbf{Qué} & \textbf{Antes} & \textbf{Después} & \textbf{Por qué} \\
+    \midrule
+    \cod{BUSCAR_PASO_GIRO_S} & 0,40 & 0,25 & El paso renovaba el 61 \% de la imagen \\
+    \cod{BUSCAR_GIRO_S} & 9 & 17 & Una vuelta entera con pasos de 18\grad \\
+    Orden del barrido & gira, mira & mira, gira & No apartar la vista antes de mirar \\
+    Frenar al ver & sólo el oso & oso y mochila & La mochila no llegaba a confirmarse \\
+    Envío de comandos & con el latido & en el acto & Los pulsos cortos salían con retardo al azar \\
+    \cod{KP_ANG} & 0,8 & 0,5 & 0,8 se pasaba; 0,3 perdía el oso \\
+    Giro al avanzar & sin límite & $\leq 0{,}7 \cdot v_{lin}$ & Ninguna rueda se detiene ni se invierte \\
+    \cod{V_LIN_MAX} & 72 & 55 & Más tiempo para centrar \\
+    \cod{AREA_OBJETIVO}, \cod{KP_LIN} & 0,222 y 4,5 & 0,35 y 2,4 & Frenar a 30 cm en vez de a 50 \\
+    Clase de la mochila & \cod{backpack} & más \cod{suitcase} & Así la ve el modelo desde el piso \\
+    Umbral de la mochila & 0,35 & 0,20 & A 1,2 m da 0,32--0,41 \\
+    Fase 2 de \cod{HUIR} & a la derecha & como la fase 1 & Deshacía el giro del retroceso \\
+    \cod{HUIR_GIRO_S} & 1,1 & 1,2 & 1,1 daba 110\grad; 1,3 se pasaba \\
+    Búsqueda tras perder el oso & a la derecha & hacia donde lo vio & Tardó 23 s en reencontrarlo \\
+    Registro & --- & columna \cod{franjas} & Saber si la cámara estaba ciega \\
+    \bottomrule
+  \end{tabular}}
+\end{frame}

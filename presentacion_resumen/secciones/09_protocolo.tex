@@ -1,0 +1,131 @@
+% =============================================================================
+\section{Protocolo y seguridad}
+% =============================================================================
+
+\begin{frame}[fragile]{El protocolo: texto, una orden por línea}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.47\textwidth}
+\footnotesize
+\textbf{Del Pi al ESP32}
+\begin{verbatim}
+M,<v_lin>,<v_ang>    enteros de -100 a 100
+B,<patron>           0 apagado, 1 hallazgo,
+                     2 alarma
+\end{verbatim}
+\textbf{Del ESP32 al Pi} (20 veces por segundo)
+\begin{verbatim}
+D,<dist_cm>,<enc_izq>,<enc_der>
+# ...                diagnostico: se descarta
+\end{verbatim}
+\textbf{Una sesión real, resumida}
+\begin{verbatim}
+<- D,153,0,0         pared a 1,5 m
+-> M,0,0             mirando
+-> M,0,35            un paso de giro
+-> M,0,0             mirando
+-> M,55,12           hacia el oso
+-> M,0,0             llego
+-> B,1               hallazgo: pitido
+\end{verbatim}
+\end{column}
+\begin{column}{0.51\textwidth}
+\footnotesize
+\begin{block}{Por qué en texto}
+  Se lee con cualquier monitor serie y se depura a ojo. A 115200 baudios, una
+  línea de 10 caracteres tarda menos de 1 ms: el protocolo no es el cuello de
+  nada.
+\end{block}
+\begin{block}{Las reglas chicas que importan}
+  \begin{itemize}
+    \item \verb|v_ang| positivo es girar a la \textbf{derecha}.
+    \item \verb|dist_cm = -1| es ``sin lectura'', \textbf{no} ``distancia
+          cero''. Tratarlo como cero frenaría el robot de entrada.
+    \item Los encoders se mandan en cero en vez de omitirse: el Pi lee siempre
+          el mismo formato.
+    \item Las líneas que empiezan con \verb|#| son para humanos; el Pi las
+          cuenta y las tira.
+    \item Para parar, exactamente \verb|M,0,0|.
+  \end{itemize}
+\end{block}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Las dos redes de seguridad, en el tiempo}
+  \centering
+  \begin{tikzpicture}[font=\scriptsize, x=1.65cm, y=0.55cm]
+    \draw[->, gris, line width=0.8pt] (0,0) -- (7.0,0) node[right]{tiempo};
+    \foreach \x/\t in {0/0, 2/0{,}40 s, 2.5/0{,}50 s, 3.5/0{,}70 s} {
+      \draw[gris] (\x,0.15) -- (\x,-0.15) node[below]{\t};
+    }
+    \node[above, align=center, text width=2.6cm] at (0,0.3) {el último comando\\válido};
+    \node[above, align=center, text width=3.0cm, azul] at (2,0.3) {\textbf{vigencia}: el latido\\manda \cod{M,0,0}};
+    \node[above, align=center, text width=3.2cm, naranja] at (3.6,2.3) {\textbf{watchdog}: el ESP32\\frena activo};
+    \draw[naranja] (2.5,0.15) -- (2.9,2.3);
+    \node[above, align=center, text width=2.6cm, gris] at (5.4,0.3) {suelta a\\rueda libre};
+    \draw[gris] (3.5,0.15) -- (4.7,0.9);
+  \end{tikzpicture}
+
+  \vspace{0.4em}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Primera red: la vigencia}
+        Actúa si el \textbf{programa sigue vivo} pero el lazo de visión dejó
+        de decidir (un frame colgado, la cámara trabada). La pone el Pi.
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Segunda red: el watchdog}
+        Actúa si el Pi \textbf{dejó de hablar}: programa muerto, cable
+        desconectado, SSH cortado. La pone el ESP32 y no depende de nadie.
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{alertblock}{Tercera: la mano}
+        El conector de 12 V. Es la única que sirve si el robot hace algo
+        \emph{coherente pero equivocado}, como avanzar contra una pared.
+      \end{alertblock}
+    \end{column}
+  \end{columns}}
+
+  \vspace{0.2em}
+  {\footnotesize Las dos primeras se probaron en hardware el 22 de septiembre,
+  con el robot elevado: dejando el programa vivo pero callado, y matándolo con
+  \cod{kill -9}.}
+\end{frame}
+
+\begin{frame}{Dos trampas de instrumentación que ya costaron tiempo}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{alertblock}{Abrir el puerto reinicia el ESP32}
+        {\small El puente USB (CP2102) baja la línea DTR al abrir el puerto, y
+        eso reinicia el ESP32, que arranca con los motores frenados.
+
+        La primera prueba del watchdog estaba mal por esto: se mataba el
+        programa y se abría el puerto ``para ver'' si el ESP32 frenaba\dots{}
+        y abrirlo \textbf{ya lo frenaba}. Un instrumento que altera lo que
+        mide.}
+      \end{alertblock}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{alertblock}{Los 2 segundos del arranque}
+        {\small Por lo anterior, \cod{Enlace} espera 2 s después de abrir, hasta
+        que el ESP32 termina de reiniciarse.
+
+        Si se lanza algo con \cod{timeout N}, el movimiento dura $N - 2$
+        segundos. Parece una falla del enlace y no lo es.}
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.5em}
+  \begin{block}{Y una mejora que salió del barrido a pasos}
+    {\small \cod{mover()} sólo actualizaba el comando y dejaba que el latido de 10 Hz
+    lo mandara: cada cambio tardaba entre 0 y 0,1 s en salir, al azar. Para
+    avanzar no importa. Para un pulso de giro de 0,25 s es hasta el 40 \% en
+    cada punta: un paso giraba la mitad o el doble que el anterior. Ahora
+    \textbf{los cambios de comando se mandan en el acto} y el latido sólo
+    sostiene. Como escriben dos hilos, la escritura va con candado.}
+  \end{block}
+\end{frame}

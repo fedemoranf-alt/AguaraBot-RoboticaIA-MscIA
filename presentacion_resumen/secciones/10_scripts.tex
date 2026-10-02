@@ -1,0 +1,264 @@
+% =============================================================================
+\section{Scripts, registros y herramientas}
+% =============================================================================
+
+\begin{frame}{\cod{scripts_pi/}: poner el Pi en marcha y operarlo}
+  \relax{\footnotesize
+  \begin{tabular}{L{3.3cm}L{1.6cm}L{8.9cm}}
+    \toprule
+    \textbf{Script} & \textbf{Corre en} & \textbf{Qué hace} \\
+    \midrule
+    \cod{entrar.ps1} & PC &
+      \textbf{Encuentra el Pi en la red y abre la sesión}: prueba el nombre, la
+      última IP conocida, la tabla ARP y, en un hotspot, barre la red. \\[1pt]
+    \cod{provisionar_pi.ps1} & PC &
+      Copia \cod{src/} y \cod{scripts_pi/} al Pi, les saca los finales de línea
+      de Windows y \textbf{corre las verificaciones allá}. Se puede repetir. \\[1pt]
+    \cod{traer_corrida.ps1} & PC &
+      Trae a \cod{logs/} los registros de las últimas corridas y, con
+      \cod{-Video}, el video. \\[1pt]
+    \cod{verificar_sd.ps1}, \cod{escribir_cloudinit.ps1} & PC &
+      Revisan y reparan la tarjeta SD \textbf{recién grabada, antes del primer
+      arranque}: nombre, usuario, SSH, WiFi y país. \\[1pt]
+    \cod{demo.sh} & Pi &
+      \textbf{Los comandos de todos los días}, uno por acción. \\[1pt]
+    \cod{inventario_pi.sh} & Pi &
+      Lista de comprobación del Pi recién instalado. \\[1pt]
+    \cod{piso/} & Pi &
+      Las pruebas en el piso y los diagnósticos de la cámara y del
+      ultrasónico. \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.4em}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Para operar sin asistencia}
+        {\footnotesize Alcanzan tres: \cod{entrar}, \cod{demo.sh} y
+        \cod{traer_corrida}. Los de la PC se llaman por su \cod{.cmd}: el
+        \cod{.ps1} directo falla desde Google Drive (``no está firmado'').}
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{alertblock}{Escritos con el Pi apagado, estrenados el 2/10}
+        {\footnotesize El estreno encontró \textbf{tres fallas}, ya corregidas
+        (en \cod{correr}, \cod{firmware} y \cod{traer_corrida.ps1}). Queda sin
+        probar \cod{fondo}.}
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{\cod{demo.sh}: un comando por acción}
+  \relax{\footnotesize
+  \begin{tabular}{L{3.0cm}L{9.3cm}L{1.4cm}}
+    \toprule
+    \textbf{Comando} & \textbf{Qué hace} & \textbf{Probado} \\
+    \midrule
+    \cod{chequeo} &
+      Alimentación, temperatura, cámara, ESP32, las 79 verificaciones y el
+      disco. Termina con \textbf{LISTO} o con qué hacer & \listo \\
+    \cod{imagen} &
+      ¿Los frames llegan enteros? 6 s sin motores; veredicto SANA, DAÑADA A
+      RATOS o ROTA & \listo \\
+    \cod{ver} &
+      Lo que detecta la cámara, frame a frame, y la foto en \cod{logs/vivo.jpg} & \listo \\
+    \cod{fondo} &
+      Sin el oso ni la mochila a la vista: ¿algo de la sala se confunde con ellos? & \pend \\
+    \cod{sonar} &
+      ¿Qué distancia mide el ultrasónico? 5 s sin motores; \textbf{SIN LECTURA}
+      si se soltó un cable & \listo \\
+    \cod{correr [seg] [nota]} &
+      La corrida, con 5 s de espera y límite de tiempo; al terminar, el análisis & \listo \\
+    \cod{grabar [seg] [nota]} &
+      Lo mismo, guardando el video de lo que ve el robot, en MP4 & \listo \\
+    \cod{ultima} & Vuelve a mostrar el análisis de la última corrida & \listo \\
+    \cod{parar} & Corta una corrida colgada, como un Ctrl+C & \curso \\
+    \cod{firmware} & Le pide al ESP32 sus parámetros y los contadores del sensor & \listo \\
+    \cod{red} & En qué WiFi está el Pi y qué redes tiene guardadas & \listo \\
+    \cod{hotspot "N" "C"} & Guarda el hotspot del celular, con prioridad & \listo \\
+    \cod{apagar} & Apaga el Pi ordenadamente & \listo \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.3em}
+  {\footnotesize Se llaman como \cod{bash ~/TPF/scripts_pi/demo.sh <comando>},
+  desde una sesión SSH. \listo{} probado en el robot \quad \curso{} a
+  medias (\cod{parar}, sólo sin corrida que parar) \quad \pend{} sin probar
+  allá.}
+\end{frame}
+
+\begin{frame}{\cod{scripts_pi/piso/} (1 de 2): los que mueven motores}
+  \relax{\footnotesize
+  \begin{tabular}{L{2.9cm}L{8.3cm}L{2.6cm}}
+    \toprule
+    \textbf{Script} & \textbf{Qué hace} & \textbf{Watchdog} \\
+    \midrule
+    \cod{corrida_piso.sh} &
+      Una corrida de \cod{main.py} con \textbf{parámetros cambiados sólo para
+      esa corrida} (se restauran al terminar, pase lo que pase), más el
+      registro de voltaje y temperatura cada 0,5 s. Con \cod{GRABAR=1} guarda
+      el video. Fue el caballito de las dos jornadas de piso. &
+      sí \\[2pt]
+    \cod{escalones.py} &
+      Una secuencia fija de comandos \cod{M} por el protocolo normal. Para ver
+      qué rueda se cala y cronometrar vueltas. &
+      sí \\[2pt]
+    \cod{paso_giro.py} &
+      Da pulsos de giro como los de \cod{BUSCAR} y \textbf{mide con la cámara}
+      cuánto se corrió la escena entre pausa y pausa. &
+      sí \\[2pt]
+    \cod{diag_camara.py} &
+      Compara YUYV quieto, YUYV girando y MJPG girando. &
+      sí \\[2pt]
+    \cod{freno_sonar.py} &
+      Avanza derecho y \textbf{frena cuando el ultrasónico lee el umbral}:
+      informa a cuántos cm mandó frenar y a cuántos quedó. A velocidad 40, 3
+      cm de inercia. &
+      sí \\[2pt]
+    \cod{umbral_piso.py} &
+      Duty crudo subiendo, por rueda: ¿desde qué duty arranca apoyada? &
+      \ojo{no} \\[2pt]
+    \cod{cinetico_piso.py} &
+      Duty crudo bajando: ¿hasta qué duty sigue girando? &
+      \ojo{no} \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.4em}
+  \begin{alertblock}{Los dos últimos}
+    {\footnotesize Usan el modo de calibración del firmware, que \textbf{desactiva el
+    watchdog}. Lo devuelven a protocolo al terminar, pero si algo queda
+    girando: 12 V afuera.}
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{\cod{scripts_pi/piso/} (2 de 2): los que no mueven nada}
+  \relax{\footnotesize
+  \begin{tabular}{L{3.0cm}L{10.8cm}}
+    \toprule
+    \textbf{Script} & \textbf{Qué responde} \\
+    \midrule
+    \cod{franjas_quieto.py} &
+      \textbf{¿La imagen llega rota con el robot quieto?} Captura unos
+      segundos, cuenta los frames con franjas grises y los que ven el oso, y
+      deja una grilla y tres frames enteros (el peor, el del medio y el
+      mejor). Con \cod{SIN_YOLO=1} captura sin correr la red. \\[2pt]
+    \cod{franjas_crudo.py} &
+      \textbf{¿Los frames vienen rotos de la cámara o se rompen en el USB?}
+      Captura MJPG crudo con \cod{v4l2-ctl} con la traza del driver encendida
+      y cruza las franjas de la imagen con los paquetes perdidos que informa
+      el kernel. \\[2pt]
+    \cod{que_ve.py} &
+      \textbf{¿Qué cree YOLO que tiene adelante?} Lista \emph{todas} las
+      clases que propone el modelo, con umbral bajo y a tres tamaños. Así se
+      supo que la mochila es \cod{suitcase}. \\[2pt]
+    \cod{sonar.py} &
+      \textbf{¿Qué distancia mide el ultrasónico?} Lee la telemetría unos
+      segundos y resume. $\sim$370 cm es ``libre''; SIN LECTURA es un cable
+      suelto. \\[2pt]
+    \cod{grilla.py} &
+      Una grilla de frames de un video de corrida, uno de cada $N$, con el
+      motivo del CSV escrito en cada uno. \\[2pt]
+    \cod{grilla_tiempos.py} &
+      Lo mismo, pero con los frames más cercanos a una lista de instantes:
+      \textbf{qué veía la cámara en cada evento} del registro. \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.5em}
+  \begin{exampleblock}{La regla de uso}
+    {\footnotesize Antes de una corrida con motores, lo que se pueda contestar sin
+    motores se contesta sin motores: un frame quieto antes que una corrida.}
+  \end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]{Cómo se lee el análisis de una corrida}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.60\textwidth}
+\scriptsize
+\begin{verbatim}
+corrida_20261001_162944.csv
+Parametros: KP_ANG=0.3  BUSCAR_GIRO_S=17.0  AREA_OBJETIVO=0.35
+
+Lazo: 298 ciclos en 30.1 s -> 9.91 FPS
+      dt p50 100 ms, p95 107, max 117
+Imagen: 0 de 298 frames con franjas, 0 muy danados
+
+Tiempo por estado: ENCONTRADO 15.1 s  BUSCAR 12.6 s
+                   APROXIMAR 2.3 s
+  12.7s  BUSCAR     -> APROXIMAR   objetivo confirmado
+  15.0s  APROXIMAR  -> ENCONTRADO  llegue (area)
+
+BUSCAR
+  12.7s: confirmado 0.20 s despues de verlo
+         ex +0.79 -> +0.73 a los 0,5 s
+APROXIMAR (22 frames con el oso)
+  ex: RMS 0.526, max 0.73
+  cruces de lado: 1 - objetivo perdido: 0
+ENCONTRADO
+  a los 15.0 s - ar al frenar 0.375 (objetivo 0.35)
+  ar con el robot quieto: 0.581
+\end{verbatim}
+\end{column}
+\begin{column}{0.38\textwidth}
+\footnotesize
+\begin{block}{Qué mirar, en orden}
+  \begin{enumerate}
+    \item \textbf{Imagen}: si hay franjas, lo demás no mide el
+          comportamiento.
+    \item \textbf{Lazo}: FPS cerca de 10--11 y sin ciclos largos.
+    \item \textbf{Transiciones}: la historia de la corrida.
+    \item \textbf{Buscar}: si lo seguía viendo medio segundo después de
+          confirmarlo.
+    \item \textbf{Aproximar}: cruces de lado (oscila) y pérdidas.
+    \item \textbf{Encontrado}: el área quieto contra el área al frenar dice
+          cuánto se pasó.
+  \end{enumerate}
+\end{block}
+Es la segunda corrida completa del 1 de octubre: oso a 1 m, a 90\grad{} a la
+izquierda.
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Cuadernos, presentaciones y evidencia}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{\cod{scripts_auxiliares/}}
+        Cuadernos de análisis: cada uno toma los datos crudos de una medición
+        y reconstruye el análisis completo, con las figuras para el informe.
+        Hay uno: \cod{01_calibracion_motores.ipynb} (las rectas por rueda de
+        agosto), con cuatro figuras en \cod{figuras/}. Los datos van
+        embebidos: corre sin hardware.
+      \end{block}
+      \begin{block}{\cod{presentacion/}}
+        La presentación de arquitectura de agosto (58 diapositivas): el
+        diseño, antes de que existiera la mitad del sistema.
+      \end{block}
+      \begin{block}{\cod{presentacion_resumen/}}
+        Este documento. \cod{TPF_resumen.tex}, las secciones en
+        \cod{secciones/} y las imágenes en \cod{figuras/}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{\cod{logs/}}
+        Los registros de las corridas: \cod{corrida_*.csv}, \cod{.json} y
+        \cod{.avi}; los \cod{volt_*.txt} de tensión y temperatura; y las
+        grillas de frames de cada prueba del 1 de octubre.
+      \end{block}
+      \begin{block}{\cod{media/}}
+        \begin{itemize}
+          \item El video de la demo completa (89 s, con las cajas y el estado
+                dibujados): \cod{2026-10-01_demo_completa_}\allowbreak\cod{vista_del_robot.mp4}.
+          \item \cod{2026-10-01_imagen_rota/}: 22 imágenes de la imagen rota
+                con el robot quieto, con un índice que dice qué es cada una.
+        \end{itemize}
+      \end{block}
+      \begin{alertblock}{Lo que falta}
+        Fotos del robot terminado y un video filmado desde afuera.
+      \end{alertblock}
+    \end{column}
+  \end{columns}}
+\end{frame}

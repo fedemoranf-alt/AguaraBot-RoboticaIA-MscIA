@@ -1,0 +1,266 @@
+% =============================================================================
+\section{La ley de control}
+% =============================================================================
+
+\begin{frame}{De una caja en la imagen a dos números}
+  \begin{columns}[c,onlytextwidth]
+    \begin{column}{0.43\textwidth}
+      \centering
+      \begin{tikzpicture}[font=\scriptsize, x=0.9cm, y=0.9cm]
+        \draw[gris, line width=0.9pt, fill=gris!4] (0,0) rectangle (6.4,4.8);
+        \draw[grisclaro, dashed] (3.2,0) -- (3.2,4.8);
+        \draw[azul, line width=1.1pt, fill=azul!10] (3.9,1.3) rectangle (5.5,3.1);
+        \fill[azul] (4.7,2.2) circle (1.5pt);
+        \draw[<->, naranja, line width=0.9pt] (3.2,2.2) -- node[above=2pt, pos=0.45]{\cod{error_x}} (4.7,2.2);
+        \node[azul] at (4.7,3.35) {caja $w \times h$};
+        \node[gris, below] at (3.2,0) {centro de la imagen};
+        \node[gris, above] at (3.2,4.8) {imagen $W \times H$};
+        \node[gris] at (0.5,0.25) {$-1$};
+        \node[gris] at (5.9,0.25) {$+1$};
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.54\textwidth}
+      \begin{block}{Error lateral: hacia dónde girar}
+        \[ \text{error\_x} = \frac{(x + w/2) - W/2}{W/2} \]
+        {\small De $-1$ (borde izquierdo) a $+1$ (borde derecho). Cero es el
+        centro. Con un campo visual de $\sim$52\grad, una unidad son unos
+        26\grad.}
+      \end{block}
+      \begin{block}{Área relativa: cuánto falta}
+        \[ \text{area\_ratio} = \frac{w \cdot h}{W \cdot H} \]
+        {\small La fracción de la imagen que ocupa la caja. Crece al acercarse,
+        más o menos como $1/d^2$. No es distancia: es \textbf{tamaño
+        aparente}.}
+      \end{block}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.3em}
+  {\footnotesize Los dos números se calculan en \cod{vision.py}, al armar cada
+  \cod{Deteccion}. La ley de control no vuelve a mirar píxeles.}
+\end{frame}
+
+\begin{frame}{Las ecuaciones}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Giro}
+        \[ v_{ang} = \begin{cases}
+             0 & \text{si } |\text{error\_x}| < 0{,}08 \\
+             100 \cdot K_{ang} \cdot \text{error\_x} & \text{si no}
+           \end{cases} \]
+        {\footnotesize acotado a $\pm 60$ (\cod{V_ANG_MAX}).}
+      \end{block}
+      \begin{block}{Avance}
+        \[ v_{lin} = 100 \cdot K_{lin} \cdot (A_{obj} - \text{area\_ratio}) \]
+        {\footnotesize acotado entre 0 y 55 (\cod{V_LIN_MAX}). Nunca negativo: la
+        ley no retrocede.}
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{El recorte que acopla las dos}
+        \[ |v_{ang}| \leq 0{,}7 \cdot v_{lin} \]
+        {\footnotesize Mientras avanza, la rueda de adentro nunca baja del 30 \% del
+        avance: ni se detiene ni se invierte.}
+      \end{block}
+      \begin{block}{Con los valores de hoy}
+        {\footnotesize
+        \begin{tabular}{L{2.6cm}L{1.0cm}L{2.6cm}}
+          \cod{KP_ANG} & 0,5 & ganancia de giro \\
+          \cod{KP_LIN} & 2,4 & ganancia de avance \\
+          \cod{AREA_OBJETIVO} & 0,35 & dónde decide frenar \\
+          \cod{ZONA_MUERTA_ERROR_X} & 0,08 & casi centrado \\
+        \end{tabular}}
+      \end{block}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.3em}
+  {\footnotesize Las dos son \textbf{proporcionales}: sin término integral ni
+  derivativo. Los valores salen en unidades del protocolo ($-100$ a $100$) y
+  el ESP32 los convierte en duty.}
+\end{frame}
+
+\begin{frame}{Qué pide la ley, con números}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.53\textwidth}
+      \begin{tabular}{L{0.9cm}L{1.6cm}L{0.9cm}L{1.5cm}L{1.1cm}}
+        \toprule
+        \textbf{área} & \textbf{distancia aprox.} & \cod{v_lin} & \textbf{velocidad} & \textbf{tope de giro} \\
+        \midrule
+        0,03 & 1,3 m & 55 & 0,25 m/s & 38 \\
+        0,05 & 1,0 m & 55 & 0,25 m/s & 38 \\
+        0,12 & 65 cm & 55 & 0,25 m/s & 38 \\
+        0,15 & 58 cm & 48 & 0,23 m/s & 33 \\
+        0,20 & 50 cm & 36 & 0,20 m/s & 25 \\
+        0,25 & 45 cm & 24 & 0,16 m/s & 16 \\
+        0,30 & 41 cm & 12 & 0,13 m/s & 8 \\
+        0,33 & 39 cm & 5 & 0,11 m/s & 3 \\
+        0,35 & 38 cm & 0 & frena & --- \\
+        \bottomrule
+      \end{tabular}
+
+      \vspace{0.3em}
+      Las distancias salen de $\text{área} \approx 500 / d^2$ (con $d$ en cm),
+      ajustado a los puntos medidos; valen $\pm$10 \%.
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{tabular}{L{1.6cm}L{1.3cm}L{2.6cm}}
+        \toprule
+        \cod{error_x} & \cod{v_ang} & \textbf{nota} \\
+        \midrule
+        0,05 & 0 & zona muerta \\
+        0,10 & 5 & \\
+        0,20 & 10 & \\
+        0,40 & 20 & \\
+        0,60 & 30 & \\
+        0,80 & 40 \hacia{} 38 & recortado a $0{,}7 \cdot 55$ \\
+        \bottomrule
+      \end{tabular}
+
+      \vspace{0.4em}
+      \begin{block}{Cómo leerlo}
+        Hasta los 65 cm va a velocidad máxima; de ahí en más baja en rampa
+        hasta frenar. El tope de giro baja con la velocidad: cerca del oso
+        corrige suave.
+      \end{block}
+    \end{column}
+  \end{columns}}
+
+  \vspace{0.2em}
+  {\footnotesize \cod{python control.py} imprime estas tablas con los parámetros
+  que estén cargados.}
+\end{frame}
+
+\begin{frame}{Por qué cada pieza está ahí}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{La zona muerta del giro}
+        No es un ajuste fino. Como no hay arranque suave, con el oso casi
+        centrado la ley pediría un giro ``mínimo'', el robot lo ejecutaría a la
+        velocidad mínima ---que no es mínima--- y oscilaría alrededor del
+        centro.
+      \end{block}
+      \begin{block}{El techo de velocidad}
+        \cod{V_LIN_MAX} existe porque los motores dan para 0,87 m/s y la
+        visión no. A 0,25 m/s el robot avanza $\sim$2,5 cm por frame.
+      \end{block}
+      \begin{block}{Nunca marcha atrás}
+        Si se pasa del área objetivo, el error se vuelve negativo y se recorta
+        a cero. Alejarse es trabajo de \cod{HUIR}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{alertblock}{El recorte del giro: la pieza que costó tres intentos}
+        \begin{enumerate}
+          \item \textbf{Sin recorte}: cerca del oso \cod{v_lin} es chico y un
+                \cod{v_ang} moderado manda una rueda \emph{para atrás}. Esa
+                rueda sale con su pulso de arranque: sacudón. El oso saltó de
+                $-0{,}33$ a $+0{,}21$ con el robot frenando.
+          \item \textbf{Recorte a $v_{lin}$}: la rueda de adentro queda
+                \emph{detenida} y el robot pivota sobre ella a 40--70\grad/s.
+                Terminó girado $\sim$15\grad.
+          \item \textbf{Recorte a $0{,}5 \cdot v_{lin}$}: suave, pero corto
+                justo al final. Perdió el oso por el borde.
+          \item \textbf{Recorte a $0{,}7 \cdot v_{lin}$}: el vigente.
+        \end{enumerate}
+      \end{alertblock}
+      \begin{block}{La raíz común}
+        Una rueda que cruza por cero no gira ``un poquito menos'': pasa de
+        0,09 m/s a nada.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{La ganancia de giro y el retardo}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{La cuenta}
+        La diferencia de comando entre ruedas es $2 \cdot v_{ang}$, que en
+        velocidad son $2 \cdot v_{ang}/100 \cdot 0{,}289$ m/s. Dividido por la
+        trocha (0,18 m) da la velocidad de giro. Con
+        $v_{ang} = 100 \cdot K_{ang} \cdot \text{error\_x}$ y una unidad de
+        error $\approx$ 0,45 rad:
+        \[ \omega \approx 7{,}1 \cdot K_{ang} \cdot \text{(error en rad)} \]
+        Eso es una \textbf{ganancia de lazo} en 1/s. Con un retardo $\tau$
+        entre la foto y la respuesta de las ruedas, el lazo oscila cuando
+        ganancia $\times$ $\tau$ se acerca a $\pi/2 \approx 1{,}57$.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{tabular}{L{1.0cm}L{1.2cm}L{1.1cm}L{2.6cm}}
+        \toprule
+        \cod{KP_ANG} & \textbf{ganancia} & $\times$ \textbf{0,25 s} & \textbf{en el piso} \\
+        \midrule
+        0,8 & 5,7 1/s & 1,4 & cruzó el centro y se fue al otro lado \\
+        0,3 & 2,1 1/s & 0,5 & centró bien por la derecha; por la izquierda perdió el oso \\
+        0,5 & 3,5 1/s & 0,9 & el vigente \\
+        \bottomrule
+      \end{tabular}
+
+      \vspace{0.4em}
+      \begin{alertblock}{Lo que la cuenta no tenía}
+        \begin{itemize}
+          \item \textbf{Avanzando}, el giro realizado es más o menos la mitad
+                del que predice la trocha medida girando en el lugar.
+          \item El robot \textbf{se tuerce solo}: $\sim$3,5\grad/s a la
+                izquierda acelerando y $\sim$5\grad/s a la derecha frenando.
+        \end{itemize}
+      \end{alertblock}
+    \end{column}
+  \end{columns}}
+
+  \vspace{0.2em}
+  {\footnotesize Por eso 0,3 resultó flojo aunque ``la cuenta daba'': la ganancia
+  real era la mitad, y había una perturbación que vencer.}
+\end{frame}
+
+\begin{frame}{El área no es distancia: qué mide \cod{area_ratio}}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.44\textwidth}
+      \begin{tabular}{L{1.7cm}L{1.5cm}L{1.9cm}}
+        \toprule
+        \textbf{Distancia} & \textbf{área} & $\text{área} \cdot d^2$ \\
+        \midrule
+        30 cm & 0,510 & 459 \\
+        50 cm & 0,222 & 555 \\
+        70 cm & 0,097 & 475 \\
+        100 cm & 0,050 & 500 \\
+        110 cm & 0,073 & \ojo{883} \\
+        \bottomrule
+      \end{tabular}
+
+      \vspace{0.3em}
+      Medido con el oso de hoja A4, el 22 y el 30 de septiembre. Los cuatro
+      primeros siguen el cuadrado inverso dentro de $\pm$10 \%; el de 110 cm
+      no (probable doble detección en el límite del alcance).
+    \end{column}
+    \begin{column}{0.53\textwidth}
+      \begin{alertblock}{El objeto es parte del número}
+        Con el primer oso impreso, de 6,5 cm, el alcance era de $\sim$45 cm y
+        frenar a 30 cm era \cod{AREA_OBJETIVO = 0.066}. Con el de hoja A4
+        ($\sim$20 cm) el alcance pasó a más de 1 m y el mismo 0,066 habría
+        sido frenar a 1 m. \textbf{Si cambia el objeto, se vuelve a medir.}
+      \end{alertblock}
+      \begin{block}{Dónde decide y dónde queda}
+        \begin{tabular}{L{2.3cm}L{1.6cm}L{2.6cm}}
+          \toprule
+          \textbf{Decide con} & \textbf{Queda con} & \textbf{Distancia real} \\
+          \midrule
+          0,223 (obj. 0,222) & 0,333 & 37 cm (cinta) \\
+          0,375 (obj. 0,35) & 0,573 & $\sim$28 cm \\
+          0,366 (obj. 0,35) & 0,49 & $\sim$30 cm \\
+          0,419 (obj. 0,35) & 0,662 & $\sim$26 cm \\
+          \bottomrule
+        \end{tabular}
+
+        Entre decidir y detenerse el área sigue creciendo: el frame tiene
+        $\sim$0,15 s y el robot no frena en seco.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}

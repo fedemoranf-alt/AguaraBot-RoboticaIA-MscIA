@@ -1,0 +1,7 @@
+# Los scripts del Pi tienen que llegar con finales de linea de Linux, y los
+# lanzadores de Windows con los de Windows, se clone donde se clone.
+*.sh   text eol=lf
+*.cmd  text eol=crlf
+*.bin  binary
+*.mp4  binary
+*.pdf  binary

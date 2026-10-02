@@ -1,0 +1,13 @@
+# TPF Robótica IA — dependencias del Pi 5
+#
+# ⚠️ El venv tiene que crearse con --system-site-packages: picamera2 viene por
+# apt (python3-picamera2), no por pip, y sin esa opción el venv no lo ve.
+#
+#   python3 -m venv --system-site-packages .venv
+#   source .venv/bin/activate
+#   pip install -r requirements.txt
+
+ultralytics>=8.3.0      # YOLOv8n + exportación a NCNN/ONNX
+opencv-python>=4.9      # captura USB, dibujo y ventana de preview
+numpy>=1.24
+pyserial>=3.5           # enlace con el ESP32 (Día 4)

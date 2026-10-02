@@ -1,0 +1,370 @@
+% =============================================================================
+\section{Parámetro por parámetro}
+% =============================================================================
+% Todas las tablas de esta sección usan la misma grilla:
+%   nombre | valor | qué hace | de dónde sale / qué pasa si se cambia
+\newcommand{\tablaparam}[1]{%
+  \begin{tabular}{L{3.1cm}L{1.25cm}L{4.85cm}L{4.3cm}}
+    \toprule
+    \textbf{Parámetro} & \textbf{Valor} & \textbf{Qué hace} & \textbf{De dónde sale} \\
+    \midrule
+    #1
+    \bottomrule
+  \end{tabular}}
+
+\begin{frame}{Cómo leer esta sección}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Dónde están}
+        {\small Todos en \cod{src/config.py}, en el orden de estas diapositivas. Los
+        del firmware (duty de cada rueda, watchdog) están en la sección ``El
+        firmware del ESP32''.}
+      \end{block}
+      \begin{block}{Qué dice cada fila}
+        {\small El nombre, el valor vigente al 1 de octubre, qué hace, y \textbf{de
+        dónde salió}: si se midió, se calculó o se puso a ojo.}
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Tres clases de número}
+        {\small
+        \begin{itemize}
+          \item \listo{} \textbf{Medido}: hay una medición detrás, con fecha.
+          \item \curso{} \textbf{Ajustado en el piso}: se llegó probando; anda,
+                pero no hay una serie de corridas que lo respalde.
+          \item \pend{} \textbf{A ojo o sin uso}: valor inicial que nunca se
+                revisó, o parámetro de algo que no está cableado.
+        \end{itemize}}
+      \end{block}
+      \begin{alertblock}{La advertencia de siempre}
+        {\small Cada número vale \textbf{en el contexto donde se midió}: este
+        oso, esta mochila, este piso, esta cámara a esta altura. Es el hilo
+        conductor de todo el trabajo.}
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Cámara}
+  \relax{\footnotesize
+  \tablaparam{
+    \cod{FUENTE_CAMARA} & \cod{"usb"} &
+      Qué cámara abrir: \cod{usb}, \cod{csi} o \cod{auto} &
+      \listo{} Fijo en USB: la CSI nunca funcionó y así no se pierde tiempo intentándola \\[1pt]
+    \cod{INDICE_CAMARA} & 0 &
+      Qué dispositivo: \cod{/dev/video0} &
+      \listo{} Confirmado el 22/09 \\[1pt]
+    \cod{FORMATO_CAMARA} & \cod{"MJPG"} &
+      Formato en que la webcam manda la imagen por USB &
+      \listo{} Obligatorio: con YUYV y los motores andando, 2,3 FPS e imagen en franjas \\[1pt]
+    \cod{ANCHO_CAPTURA}, \cod{ALTO_CAPTURA} & 640, 480 &
+      Resolución de captura (no es el tamaño de inferencia) &
+      \pend{} La nativa de la webcam; no se barrió \\[1pt]
+    \cod{FPS_CAMARA_SOLICITADO} & 30 &
+      Lo que se le pide a la webcam &
+      \pend{} El lazo corre a $\sim$11: sobran frames \\[1pt]
+    \cod{FOV_H_GRAD} & 52 &
+      Campo visual horizontal, en grados. \textbf{Sólo lo usa el simulador} &
+      \curso{} Estimado el 01/10: el oso reapareció tras $\sim$4400 px de giro. Se suponía 60 \\
+  }}
+
+  \vspace{0.4em}
+  {\footnotesize \textbf{Captura contra inferencia:} la captura fija cuántos datos
+  viajan por el USB; la inferencia, cuánto cuesta la red. Capturar a
+  640$\times$480 e inferir a 320 es reducir la imagen antes de dársela a YOLO.}
+\end{frame}
+
+\begin{frame}{Detección: el modelo y sus umbrales}
+  \relax{\footnotesize
+  \tablaparam{
+    \cod{PESOS_MODELO} & \cod{yolov8n.pt} &
+      El archivo de pesos: YOLOv8 ``nano'', 80 clases de COCO &
+      \listo{} El más chico de la familia; NCNN no hizo falta \\[1pt]
+    \cod{TAM_INFERENCIA} & 320 &
+      Lado de la imagen que ve la red. \textbf{La palanca del FPS} &
+      \listo{} Medido: 640 \hacia{} 3,2 FPS, 480 \hacia{} 5,2, \textbf{320 \hacia{} 11,3}, 256 \hacia{} 17,7 \\[1pt]
+    \cod{UMBRAL_CONFIANZA} & 0,35 &
+      Confianza mínima para aceptar una caja (vale para el oso) &
+      \pend{} Valor inicial; el oso da 0,85--0,95 \\[1pt]
+    \cod{UMBRAL_POR_CLASE} & mochila: 0,20 &
+      Umbral propio de una clase, que pisa al general &
+      \curso{} La mochila da 0,32--0,41 a 1,2 m. Sensible a objetos oscuros grandes \\[1pt]
+    \cod{UMBRAL_IOU} & 0,45 &
+      Solapamiento para fundir cajas repetidas (supresión de no máximos) &
+      \pend{} El valor por defecto \\
+  }}
+
+  \vspace{0.4em}
+  \begin{alertblock}{El costo de \cod{TAM_INFERENCIA}}
+    {\footnotesize Bajar a 320 da FPS y \textbf{quita alcance}: a 480 o 640 se
+    detectan objetos más chicos, o sea más lejanos. Se eligió mirando FPS y
+    latencia, antes de haber medido el alcance. La decisión no cambió, pero el
+    alcance se terminó arreglando agrandando el oso.}
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Detección: las clases y la confirmación}
+  \relax{\footnotesize
+  \tablaparam{
+    \cod{CLASE_OBJETIVO} & \cod{teddy bear} &
+      La clase a la que se acerca &
+      Decisión de diseño D3 \\[1pt]
+    \cod{CLASE_AMENAZA} & \cod{backpack} &
+      La clase de la que huye &
+      Decisión de diseño D3 \\[1pt]
+    \cod{ALIAS_CLASES} & \cod{suitcase} \hacia{} \cod{backpack} &
+      Otros nombres del modelo para el \emph{mismo} objeto; se renombran al detectar &
+      \listo{} La mochila real es \cod{suitcase} en 15 de 15 frames \\[1pt]
+    \cod{N_CONFIRMAR} & 3 &
+      Frames seguidos para dar una clase por confirmada &
+      \pend{} Diseño (D6). A 10 FPS son $\sim$0,3 s \\[1pt]
+    \cod{M_PERDER} & 5 &
+      Frames seguidos sin verla para darla por perdida &
+      \pend{} Diseño (D6). A 10 FPS son $\sim$0,5 s \\
+  }}
+
+  \vspace{0.4em}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Si \cod{N_CONFIRMAR} sube}
+        Menos falsas maniobras, pero tarda más en reaccionar y pide que el
+        robot esté quieto más tiempo en cada pausa del barrido.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Si \cod{M_PERDER} sube}
+        Aguanta más frames malos sin soltar el oso, pero la mochila queda
+        ``confirmada'' más tiempo después de dejar de verla: el período sordo
+        de \cod{HUIR} tiene que ser más largo.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{Control: acercarse al oso}
+  \relax{\footnotesize
+  \tablaparam{
+    \cod{KP_ANG} & 0,5 &
+      Ganancia del giro: cuánto \cod{v_ang} por unidad de \cod{error_x} &
+      \curso{} 0,8 se pasaba de largo; 0,3 perdía el oso por la izquierda \\[1pt]
+    \cod{ZONA_MUERTA_ERROR_X} & 0,08 &
+      Por debajo de este error no gira &
+      \pend{} Valor inicial. Evita oscilar con el oso casi centrado \\[1pt]
+    \cod{V_ANG_MAX} & 60 &
+      Tope del giro. También es la velocidad de giro de \cod{HUIR} &
+      \listo{} Da 165\grad/s en régimen (30/09) \\[1pt]
+    \cod{KP_LIN} & 2,4 &
+      Ganancia del avance: fija dónde empieza la rampa de frenado &
+      \curso{} Con este valor frena desde $\sim$65 cm \\[1pt]
+    \cod{AREA_OBJETIVO} & 0,35 &
+      Área con la que \textbf{decide} frenar &
+      \curso{} Decide a $\sim$38 cm y queda a $\sim$30 \\[1pt]
+    \cod{V_LIN_MAX} & 55 &
+      Techo del avance: 0,25 m/s &
+      \curso{} Era 72 (0,30 m/s): no le daba tiempo a centrar \\
+  }}
+
+  \vspace{0.4em}
+  \begin{alertblock}{Tres que se mueven juntos}
+    {\footnotesize La rampa de frenado empieza donde
+    $100 \cdot K_{lin} \cdot (A_{obj} - \text{área}) = V_{lin,max}$. Cambiar
+    cualquiera de los tres mueve ese punto. Y para que el techo
+    \emph{actúe} tiene que valer $100 \cdot K_{lin} \cdot A_{obj} \geq V_{lin,max}$
+    (hoy 84 contra 55): al principio no se cumplía y \cod{V_LIN_MAX} era un
+    número decorativo.}
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Control: buscar}
+  \relax{\footnotesize
+  \tablaparam{
+    \cod{V_ANG_BUSCAR} & 35 &
+      Velocidad de giro de cada pulso del barrido &
+      \listo{} Da 124\grad/s en régimen (30/09) \\[1pt]
+    \cod{BUSCAR_PASO_GIRO_S} & 0,25 &
+      Duración de cada pulso de giro &
+      \listo{} Medido con la cámara: renueva el 35 \% de la imagen ($\sim$18\grad) \\[1pt]
+    \cod{BUSCAR_PASO_MIRAR_S} & 0,6 &
+      Cuánto se queda quieto mirando entre pulsos. Con 0, gira de corrido &
+      \curso{} Unos 6 frames: alcanza para confirmar con 3 \\[1pt]
+    \cod{BUSCAR_GIRO_S} & 17 &
+      Duración del barrido antes de reubicarse: una vuelta entera &
+      \curso{} 20 pasos de 0,85 s. Con 9 s no cerraba la vuelta \\[1pt]
+    \cod{BUSCAR_AVANCE_S} & 1,0 &
+      Duración del avance de reubicación &
+      \pend{} Valor inicial \\[1pt]
+    \cod{V_LIN_BUSCAR} & 30 &
+      Velocidad de ese avance: 0,18 m/s, unos 18 cm &
+      \pend{} Valor inicial \\[1pt]
+    \cod{BUSCAR_FRENAR_AL_VER} & \cod{True} &
+      Si ve el oso o la mochila sin confirmar, no gira &
+      \listo{} Sin esto no confirmaba ninguno de los dos \\
+  }}
+
+  \vspace{0.3em}
+  {\footnotesize \textbf{El compromiso:} pasos más chicos no dejan huecos pero
+  alargan la vuelta ($\sim$17 s hoy). La pausa de 0,6 s es la otra mitad de ese
+  tiempo, y es la candidata a acortar.}
+\end{frame}
+
+\begin{frame}{Estados: huir}
+  \relax{\footnotesize
+  \tablaparam{
+    \cod{HUIR_RETROCESO_S} & 1,5 &
+      Duración de la fase 1 (marcha atrás) &
+      \pend{} Valor inicial; el usuario lo dio por bueno \\[1pt]
+    \cod{HUIR_V_RETROCESO} & 40 &
+      Velocidad de la marcha atrás: 0,21 m/s &
+      \pend{} Más lenta que el avance: es a ciegas \\[1pt]
+    \cod{HUIR_GIRO_RETROCESO} & 25 &
+      Giro durante el retroceso, hacia el lado opuesto a la mochila &
+      \pend{} Valor inicial. Aporta entre $\sim$10 y $\sim$25\grad{} según el lado \\[1pt]
+    \cod{HUIR_GIRO_S} & 1,2 &
+      Duración de la fase 2 (giro en el lugar a \cod{V_ANG_MAX}) &
+      \curso{} 1,1 daba $\sim$110\grad; 1,3 se pasó de media vuelta \\[1pt]
+    \cod{HUIR_AVANCE_S} & 2,5 &
+      Duración de la fase 3 (alejarse) &
+      \pend{} Valor inicial; $\sim$65 cm, dado por bueno \\[1pt]
+    \cod{HUIR_V_AVANCE} & 60 &
+      Velocidad de la fase 3: 0,27 m/s &
+      \pend{} Valor inicial \\[1pt]
+    \cod{HUIR_REFRACTARIO_S} & 2,0 &
+      Período sordo a la mochila después de huir &
+      \listo{} Tiene que superar \cod{M_PERDER}/FPS $\approx$ 0,5 s \\
+  }}
+
+  \vspace{0.3em}
+  {\footnotesize \textbf{Por qué \cod{HUIR_GIRO_S} no sale de una cuenta:} los
+  165\grad/s son de régimen; la fase 2 dura un segundo y arranca desde la
+  marcha atrás. Lo que gira en ese segundo depende de la aceleración y del
+  lado.}
+\end{frame}
+
+\begin{frame}{Tracción: lo que el Pi sabe de los motores}
+  \relax{\footnotesize
+  \tablaparam{
+    \cod{V_MIN_MS} & 0,0915 &
+      Velocidad con el comando más chico posible ($u \to 0^+$), en m/s &
+      \listo{} Medido en banco el 27/08; confirmado en piso \\[1pt]
+    \cod{V_MAX_MS} & 0,3806 &
+      Velocidad con $u = 1$, en m/s &
+      \listo{} Ídem \\[1pt]
+    \cod{DIAM_RUEDA_M} & 0,060 &
+      Diámetro de la rueda &
+      \listo{} Medido el 24/07 \\[1pt]
+    \cod{TROCHA_M} & 0,18 &
+      Trocha \textbf{efectiva}: la que reproduce los giros en el lugar. \textbf{Sólo la usa el simulador} &
+      \listo{} Con regla son 21,5 cm; la que gira el robot es 18 \\[1pt]
+    \cod{PWM_MIN_*}, \cod{PWM_TOP_*}, \cod{PWM_BREAKAWAY_*}, \cod{BREAKAWAY_MS} & (piso) &
+      Copia informativa de la calibración del firmware: 300/230, 413/470, 380/280, 150 ms. No los usa nadie &
+      \listo{} Puestos al día el 01/10 con los de piso. Los que valen están en el firmware \\
+  }}
+
+  \vspace{0.4em}
+  \begin{block}{Para qué están acá si el Pi no toca el PWM}
+    {\footnotesize La ley de control necesita saber \textbf{en qué velocidades reales
+    se traduce lo que manda}: de ahí salen \cod{V_LIN_MAX} (el comando que da
+    0,25 m/s), los registros en m/s y el simulador. Las funciones
+    \cod{velocidad_real()} y \cod{comando_para_velocidad()} hacen esa
+    conversión.}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Enlace serie}
+  \relax{\footnotesize
+  \tablaparam{
+    \cod{PUERTO_SERIE} & \cod{ttyUSB0} &
+      El puerto del ESP32 en el Pi: \cod{/dev/ttyUSB0} &
+      \listo{} Confirmado el 22/09 (CP2102). Si falla, lo busca solo \\[1pt]
+    \cod{BAUDIOS} & 115200 &
+      Velocidad del puerto &
+      Igual que en el firmware \\[1pt]
+    \cod{TIMEOUT_SERIE_S} & 0,05 &
+      Cuánto espera el hilo lector por una línea &
+      \pend{} Valor inicial \\[1pt]
+    \cod{PERIODO_COMANDO_S} & 0,10 &
+      Cada cuánto el latido repite el comando (10 Hz) &
+      Cinco latidos por ventana del watchdog \\[1pt]
+    \cod{VIGENCIA_COMANDO_S} & 0,40 &
+      Edad máxima de un comando para que el latido lo siga repitiendo &
+      \listo{} Probado: con el lazo colgado, frena en menos de 1 s \\[1pt]
+    \cod{WATCHDOG_ESP32_MS} & 500 &
+      Informativo: lo que tarda el ESP32 en frenar solo &
+      El que vale está en el firmware \\
+  }}
+
+  \vspace{0.4em}
+  \begin{alertblock}{La vigencia tiene que caer entre dos cosas}
+    {\footnotesize Tiene que ser \textbf{holgada contra el peor frame}
+    ($\sim$0,1 s por ciclo; el peor visto, 1,3 s con la imagen rota) y
+    \textbf{más corta que el watchdog} (0,5 s). Con 0,40 s, un ciclo normal
+    nunca vence y un cuelgue frena antes de que tenga que actuar el ESP32.}
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Ultrasónico, buzzer y métricas}
+  \relax{\footnotesize
+  \tablaparam{
+    \cod{DIST_PARADA_CM} & 20 &
+      En \cod{APROXIMAR}: a esta distancia o menos, llegó (si es el oso) o se
+      desvía (si no) &
+      Sin cambios; el robot frena antes por tamaño \\[1pt]
+    \cod{DIST_OBSTACULO_CM} & 30 &
+      En la fase 3 de \cod{HUIR} y en el avance de \cod{BUSCAR}: no avanza,
+      gira &
+      \listo{} Con 20, la lectura bajó a 11 cm \\[1pt]
+    \cod{SONAR_RETENCION_S} & 0,3 &
+      Cuánto se sostiene un obstáculo tras la última lectura que lo vio &
+      \listo{} Leyó 16, 150, 11 y avanzó con el 150 \\[1pt]
+    \cod{DIST_INVALIDA} & $-1$ &
+      Lo que manda el ESP32 cuando no hay lectura &
+      Parte del protocolo \\[1pt]
+    \cod{SONAR_CENTRADO} & 0,7 &
+      Con el oso más centrado que esto, lo que ve el sonar ``es el oso'' &
+      \listo{} Era 0,35; el robot llega descentrado \\[1pt]
+    \cod{SONAR_FRACCION_AREA} & 0,6 &
+      Y además el oso tiene que ocupar esta fracción del área objetivo &
+      \pend{} Nunca llegó a decidir \\[1pt]
+    \cod{BUZZER_OFF}, \cod{_HALLAZGO}, \cod{_ALARMA} & 0, 1, 2 &
+      Los patrones del buzzer: suena al huir y al llegar &
+      Parte del protocolo \\[1pt]
+    \cod{FPS_OBJETIVO} & 5,0 &
+      Criterio de aceptación del lazo; \cod{main.py} avisa si queda debajo &
+      Métrica del plan. Medido: $\sim$11 \\
+  }}
+
+  \vspace{0.4em}
+  \begin{block}{Desde el 2 de octubre, actúan}
+    {\footnotesize El ultrasónico está cableado. Los tres valores marcados
+    \listo{} salieron de \textbf{una corrida cada uno}: son ajustes a ojo. Con
+    el sensor desconectado el ESP32 manda $-1$, que se lee como ``no sé'': el
+    robot anda igual, sin ver obstáculos, y \cod{main.py} lo avisa.}
+  \end{block}
+\end{frame}
+
+\begin{frame}{Si pasa esto, tocar aquello}
+  \relax{\footnotesize
+  \begin{tabular}{L{5.0cm}L{4.1cm}L{4.6cm}}
+    \toprule
+    \textbf{Síntoma} & \textbf{Parámetro} & \textbf{Hacia dónde} \\
+    \midrule
+    Gira y pasa por delante del oso sin verlo & \cod{BUSCAR_PASO_GIRO_S} & Bajar (pasos más chicos) \\[1pt]
+    Lo ve en la pausa pero no llega a confirmarlo & \cod{BUSCAR_PASO_MIRAR_S} & Subir \\[1pt]
+    La búsqueda es muy lenta & \cod{BUSCAR_PASO_MIRAR_S} & Bajar, con cuidado \\[1pt]
+    No completa la vuelta antes de avanzar & \cod{BUSCAR_GIRO_S} & Subir \\[1pt]
+    Al acercarse cruza el oso de un lado al otro & \cod{KP_ANG} & Bajar \\[1pt]
+    Al acercarse el oso se le va por un costado & \cod{KP_ANG} (o \cod{V_LIN_MAX}) & Subir (o bajar la velocidad) \\[1pt]
+    Frena demasiado lejos / demasiado cerca & \cod{AREA_OBJETIVO} & Subir / bajar \\[1pt]
+    Llega demasiado rápido y se pasa & \cod{KP_LIN}, \cod{V_LIN_MAX} & Bajar \\[1pt]
+    No huye de la mochila & \cod{UMBRAL_POR_CLASE} & Bajar (mirar antes qué clase ve) \\[1pt]
+    Huye de cosas que no son la mochila & \cod{UMBRAL_POR_CLASE} & Subir \\[1pt]
+    Al huir no queda de espaldas & \cod{HUIR_GIRO_S} & Subir (gira más) \\[1pt]
+    Huye dos veces seguidas sin ver nada & \cod{HUIR_REFRACTARIO_S} & Subir \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.3em}
+  {\footnotesize Antes de tocar nada: mirar la línea \textbf{Imagen} del análisis.
+  Con la cámara rota, todos los síntomas se parecen.}
+\end{frame}

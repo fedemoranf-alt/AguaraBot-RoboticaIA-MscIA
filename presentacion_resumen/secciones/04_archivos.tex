@@ -1,0 +1,564 @@
+% =============================================================================
+\section{El código del Pi, archivo por archivo}
+% =============================================================================
+
+\begin{frame}[fragile]{El mapa del proyecto}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.47\textwidth}
+\scriptsize
+\begin{verbatim}
+TPF/
+  PLAN.md            plan y bitacora
+  HARDWARE.md        analisis electrico
+  RUNBOOK.md         paso a paso
+  GUIA_PRESENTACION.md (+ .pdf)
+  firmware/
+    esp32_control/   firmware definitivo
+    esp32_motor_test/  prueba de cableado
+  src/               el codigo del Pi
+  scripts_pi/        puesta en marcha
+    piso/            pruebas en el piso
+  scripts_auxiliares/  cuadernos
+  presentacion/      arquitectura (agosto)
+  presentacion_resumen/  este documento
+  logs/              registros de corridas
+  media/             video y evidencia
+\end{verbatim}
+\end{column}
+\begin{column}{0.51\textwidth}
+\footnotesize
+\begin{block}{Los cuatro documentos}
+  \begin{itemize}
+    \item \cod{PLAN.md}: el estado actual (§1), la especificación (§6 a §8) y
+          la \textbf{bitácora} de cada jornada (§13). Es el que manda.
+    \item \cod{HARDWARE.md}: motores, L298, alimentación, cableado; cada
+          medición con su fecha.
+    \item \cod{RUNBOOK.md}: los pasos numerados para repetir cada cosa.
+    \item \cod{GUIA_PRESENTACION.md}: cómo operar el robot sin ayuda el día de
+          la presentación.
+  \end{itemize}
+\end{block}
+\begin{block}{Dónde corre cada cosa}
+  \cod{src/} y \cod{scripts_pi/} se copian al Pi, en \cod{~/TPF/}. El
+  firmware se compila en la PC con PlatformIO. Los cuadernos y este documento
+  viven sólo en la PC.
+\end{block}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{\cod{src/}: once archivos, tres familias}
+  \relax{\footnotesize
+  \begin{tabular}{L{3.0cm}L{1.0cm}L{9.7cm}}
+    \toprule
+    \textbf{Archivo} & \textbf{Líneas} & \textbf{Qué es} \\
+    \midrule
+    \multicolumn{3}{l}{\textbf{El robot} --- lo que corre en cada demo} \\
+    \cod{config.py} & 484 & Todos los parámetros, cada uno con su origen \\
+    \cod{vision.py} & 386 & Cámara, detector YOLO, confirmación temporal, salud de la imagen \\
+    \cod{control.py} & 178 & La ley de control: de una caja a \cod{(v_lin, v_ang)} \\
+    \cod{estados.py} & 349 & La máquina de estados: el comportamiento \\
+    \cod{enlace_esp32.py} & 366 & El protocolo serie con el ESP32, el latido y la parada segura \\
+    \cod{main.py} & 245 & El lazo principal: sólo cablea los anteriores \\
+    \cod{registro.py} & 136 & El CSV y el JSON de cada corrida, y el video \\
+    \midrule
+    \multicolumn{3}{l}{\textbf{Las herramientas de medición}} \\
+    \cod{bench_vision.py} & 423 & Mide el FPS real; modo ``en vivo'' para ver qué detecta \\
+    \cod{analizar_corrida.py} & 305 & Saca las métricas de un CSV de corrida \\
+    \midrule
+    \multicolumn{3}{l}{\textbf{La verificación sin hardware}} \\
+    \cod{prueba_estados.py} & 605 & 79 verificaciones del comportamiento, con el tiempo simulado \\
+    \cod{simular_piso.py} & 318 & La máquina real contra un robot cinemático simulado \\
+    \bottomrule
+  \end{tabular}}
+
+  \vspace{0.3em}
+  {\footnotesize Más \cod{requirements.txt} y los pesos del modelo,
+  \cod{yolov8n.pt}. Los nombres están en español, como el resto del proyecto.}
+\end{frame}
+
+\begin{frame}{Quién usa a quién}
+  \centering
+  \begin{tikzpicture}[font=\footnotesize, >={Stealth[length=2mm]},
+      m/.style={draw, rounded corners=2pt, minimum height=0.7cm, align=center,
+                line width=0.8pt, text width=2.3cm}]
+    \node[m, draw=azul, fill=azul!12] (main) {\cod{main.py}};
+    \node[m, draw=azul, fill=azul!8, below left=0.9cm and 3.6cm of main] (vis) {\cod{vision.py}};
+    \node[m, draw=azul, fill=azul!8, below left=0.9cm and 0.1cm of main] (est) {\cod{estados.py}};
+    \node[m, draw=azul, fill=azul!8, below right=0.9cm and 0.1cm of main] (enl) {\cod{enlace_esp32.py}};
+    \node[m, draw=azul, fill=azul!8, below right=0.9cm and 3.6cm of main] (reg) {\cod{registro.py}};
+    \node[m, draw=azul, fill=azul!8, below=0.8cm of est] (ctl) {\cod{control.py}};
+    \node[m, draw=naranja, fill=naranja!10, below=2.9cm of main] (cfg) {\cod{config.py}};
+    \draw[->] (main) -- (vis); \draw[->] (main) -- (est); \draw[->] (main) -- (enl); \draw[->] (main) -- (reg);
+    \draw[->] (est) -- (ctl);
+    \draw[->, dashed] (est) -- node[below=5pt, font=\scriptsize]{usa \cod{mejor()}} (vis);
+    \draw[->, naranja] (ctl) -- (cfg); \draw[->, naranja] (vis.south) |- (cfg.west);
+    \draw[->, naranja] (enl.south) |- ([yshift=2pt]cfg.east);
+    \draw[->, naranja] (reg.south) |- ([yshift=-2pt]cfg.east);
+  \end{tikzpicture}
+
+  \vspace{0.4em}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Cómo leerlo}
+        \cod{main.py} es el único que conoce a todos. Las flechas naranjas
+        son ``lee sus parámetros de \cod{config.py}'': todos lo hacen.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Lo que \emph{no} hay}
+        \cod{estados.py} y \cod{control.py} no importan ni la cámara ni el
+        puerto serie. Por eso las herramientas de verificación los usan
+        directamente, sin robot.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{\cod{config.py} --- todos los números, con su historia}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Qué es}
+        Un módulo de constantes, sin lógica (salvo dos funciones de
+        conversión). Cada valor tiene al lado un comentario que dice
+        \textbf{de dónde salió}: medido (con fecha), calculado, o pendiente.
+        Más de la mitad del archivo son esos comentarios.
+      \end{block}
+      \begin{block}{Sus secciones}
+        \begin{enumerate}\setcounter{enumi}{-1}
+          \item Rutas (\cod{DIR_LOGS}, \cod{DIR_MEDIA}).
+          \item Cámara.
+          \item Detección (modelo, clases, umbrales, confirmación).
+          \item Ley de control y \cod{BUSCAR}.
+          \item Tracción (lo que hace el firmware, replicado).
+          \item Estados: \cod{HUIR} y ultrasónico.
+          \item Enlace serie.
+          \item Métricas.
+        \end{enumerate}
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Las dos funciones}
+        \begin{itemize}
+          \item \cod{velocidad_real(u)}: de un comando $u$ entre 0 y 1 a m/s,
+                con el escalón de arranque:
+                $v = 0{,}0915 + 0{,}289\,u$ para $u > 0$.
+          \item \cod{comando_para_velocidad(v)}: la inversa.
+        \end{itemize}
+      \end{block}
+      \begin{block}{Las marcas de los comentarios}
+        Tilde verde: medido. Cuadrado vacío: puesto a ojo, falta medir.
+        Círculo rojo: una trampa que ya costó una jornada.
+      \end{block}
+      \begin{exampleblock}{Cómo se cambia un parámetro para una sola corrida}
+        \cod{corrida_piso.sh etiqueta 25 "nota" KP_ANG=0.4}: lo cambia, corre,
+        y lo restaura al terminar.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{\cod{vision.py} (1 de 2) --- de un frame a una lista de detecciones}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{\cod{Deteccion} (un dato inmutable)}
+        Una caja ya convertida a lo que el control necesita:
+        \cod{clase}, \cod{conf}, la caja en píxeles (\cod{x, y, w, h}) y los
+        dos números de la ley de control:
+        \begin{itemize}
+          \item \cod{error_x}: de $-1$ (borde izquierdo) a $+1$ (derecho).
+          \item \cod{area_ratio}: fracción de la imagen que ocupa la caja.
+        \end{itemize}
+      \end{block}
+      \begin{block}{\cod{Detector}}
+        Envuelve a YOLOv8n. Al construirse resuelve los \textbf{nombres} de
+        las clases contra \cod{model.names}; si el modelo no las conoce, falla
+        ahí. \cod{detectar(frame)} devuelve la lista de \cod{Deteccion} y los
+        tiempos de inferencia y posproceso.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Dos cosas que agregó el piso}
+        \begin{itemize}
+          \item \textbf{Alias} (\cod{ALIAS_CLASES}): lo que el modelo llama
+                \cod{suitcase} sale del detector ya renombrado a
+                \cod{backpack}. El resto del sistema no se entera.
+          \item \textbf{Umbral por clase} (\cod{UMBRAL_POR_CLASE}): a YOLO se
+                le pide con el umbral más bajo y cada caja se filtra con el de
+                su clase (0,20 la mochila, 0,35 el oso).
+        \end{itemize}
+      \end{block}
+      \begin{block}{Otros detalles}
+        \begin{itemize}
+          \item \cod{calentar()}: tres inferencias de descarte. La primera
+                tarda varias veces lo normal.
+          \item El filtrado por clase lo hace la propia librería
+                (\cod{classes=...}): no se procesan las otras 78 clases.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{\cod{vision.py} (2 de 2) --- confirmación, cámara y salud de la imagen}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{\cod{Confirmador}}
+        Lleva, por clase, cuántos frames seguidos se la vio y cuántos no.
+        \cod{actualizar(clases)} devuelve el conjunto de clases
+        \textbf{confirmadas}: entra con 3 frames seguidos
+        (\cod{N_CONFIRMAR}), sale con 5 sin verla (\cod{M_PERDER}).
+      \end{block}
+      \begin{block}{\cod{mejor(detecciones, clase)}}
+        La caja más confiable de una clase, o \cod{None}. Es lo único de este
+        módulo que usa la máquina de estados.
+      \end{block}
+      \begin{block}{\cod{dibujar()}}
+        Anota el frame con las cajas y el estado. Sólo para el video y para
+        depurar.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{\cod{Camara}}
+        Abstrae las dos cámaras posibles: CSI (Picamera2) o USB (OpenCV sobre
+        V4L2). Hoy siempre USB. Fija \textbf{primero el formato} (MJPG) y
+        después el tamaño, y pide un búfer de un solo frame para no trabajar
+        sobre imágenes viejas.
+      \end{block}
+      \begin{block}{\cod{franjas(frame)}}
+        Fracción de las filas que son una \textbf{franja gris uniforme}: lo
+        que deja un paquete USB perdido en un frame MJPG. 0,0 es un frame
+        sano; arriba de 0,10 la detección ya no es confiable. Cuesta 1,7 ms y
+        va a cada fila del registro.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{\cod{control.py} --- la ley de control, en funciones puras}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Qué es}
+        Convierte una detección en un comando. Nada más: no toca la cámara, no
+        toca el puerto y no recuerda nada entre llamadas.
+      \end{block}
+      \begin{block}{Las funciones}
+        \begin{itemize}
+          \item \cod{girar_hacia(error_x)} \hacia{} \cod{v_ang}, con zona
+                muerta.
+          \item \cod{avanzar_hacia(area_ratio)} \hacia{} \cod{v_lin}, nunca
+                negativo.
+          \item \cod{perseguir(deteccion)} \hacia{} las dos, con el giro
+                \textbf{acotado} a 0,7 veces el avance.
+          \item \cod{a_protocolo()}: de normalizado a entero entre $-100$ y
+                $100$, con tope.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Las de diagnóstico}
+        \begin{itemize}
+          \item \cod{techo_efectivo_lineal()}: cuál es el \cod{v_lin} máximo
+                que la ley puede pedir, y \textbf{cuál de los dos límites
+                manda} (la ganancia o \cod{V_LIN_MAX}).
+          \item \cod{kp_lin_para_saturar()}: la ganancia mínima para que
+                mande \cod{V_LIN_MAX}.
+          \item \cod{describir()}: el resumen que \cod{main.py} imprime al
+                arrancar.
+        \end{itemize}
+      \end{block}
+      \begin{exampleblock}{Se puede correr solo}
+        \cod{python control.py} imprime una tabla de \cod{error_x} a
+        \cod{v_ang} y de \cod{area_ratio} a \cod{v_lin} con los parámetros
+        vigentes. Sirve para ver qué va a pedir la ley antes de soltar el robot.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{\cod{estados.py} --- el comportamiento}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{\cod{Comando}}
+        Lo que la máquina pide en un ciclo: \cod{v_lin}, \cod{v_ang},
+        \cod{buzzer} (casi siempre \cod{None}), \cod{estado} y un
+        \cod{motivo} en texto. El motivo es lo que aparece en la consola y en
+        el CSV: ``barriendo'', ``posible objetivo, freno a confirmar''...
+      \end{block}
+      \begin{block}{\cod{Maquina.paso(...)}}
+        Un ciclo de decisión. Recibe las clases confirmadas, las detecciones
+        crudas del frame, la telemetría del ESP32 y \textbf{la hora}; devuelve
+        un \cod{Comando}. No lee ningún reloj por su cuenta.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Lo que la máquina recuerda}
+        \begin{itemize}
+          \item \cod{estado} y \cod{entrado_en}: en qué estado está y desde
+                cuándo.
+          \item \cod{fase_huir}: 1, 2 o 3.
+          \item \cod{lado_amenaza}: de qué lado estaba la mochila.
+          \item \cod{huida_termino_en}: para el período sordo.
+          \item \cod{sentido_barrido}: hacia dónde gira al buscar.
+        \end{itemize}
+      \end{block}
+      \begin{block}{Un método por estado}
+        \cod{_buscar}, \cod{_aproximar}, \cod{_huir}, \cod{_encontrado}. El
+        detalle de cada uno está en la sección ``La máquina de estados''.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{\cod{enlace_esp32.py} --- la única pieza que sabe que hay un cable}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{\cod{Enlace}}
+        Abre el puerto, espera 2 s a que el ESP32 termine de reiniciarse y
+        lanza \textbf{dos hilos}:
+        \begin{itemize}
+          \item \emph{lector}: lee líneas, descarta las que empiezan con
+                \texttt{\#} y guarda la última telemetría.
+          \item \emph{latido}: cada 0,1 s manda el comando vigente, o
+                \cod{M,0,0} si ya venció.
+        \end{itemize}
+      \end{block}
+      \begin{block}{Lo que se le pide}
+        \begin{itemize}
+          \item \cod{mover(v_lin, v_ang)}: fija el comando. Si cambió, lo manda
+                \textbf{en el acto}.
+          \item \cod{parar()}: \cod{M,0,0} ya.
+          \item \cod{buzzer(patron)}: un evento, se manda una vez.
+          \item \cod{estado}: la última telemetría.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{\cod{EstadoESP32}}
+        La última línea \cod{D} interpretada. \cod{dist_cm} es \cod{None}
+        cuando el ESP32 manda $-1$ (``sin lectura''); \cod{obstaculo()} trata
+        el ``no sé'' como ``no''. Hoy siempre es ``no sé''.
+      \end{block}
+      \begin{block}{Para probar sin ESP32}
+        \cod{Enlace(simular=True)} usa un puerto de mentira que contesta
+        \cod{D,-1,0,0} y guarda lo que se le escribe. Es lo que usa
+        \cod{main.py --simular}.
+      \end{block}
+      \begin{alertblock}{Sale siempre frenando}
+        Se usa con \cod{with}: al salir manda \cod{M,0,0}, aunque haya habido
+        una excepción.
+      \end{alertblock}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{main.py} --- el lazo, que es sólo cableado}
+\begin{columns}[T,onlytextwidth]
+\begin{column}{0.53\textwidth}
+\scriptsize
+\begin{verbatim}
+cam, det = Camara(), Detector()
+conf, maq = Confirmador(), Maquina()
+with Enlace() as esp:
+    det.calentar(cam.leer())
+    esperar(--espera)          # soltar el robot
+    reg = Registro(...)
+    while seguir:
+        frame = cam.leer()
+        rotas = franjas(frame)
+        dets  = det.detectar(frame)
+        confirmadas = conf.actualizar(dets)
+        cmd = maq.paso(confirmadas, dets,
+                       esp.estado, ahora)
+        esp.mover(cmd.v_lin, cmd.v_ang)
+        if cmd.buzzer: esp.buzzer(cmd.buzzer)
+        reg.fila(..., rotas)
+        if tiempo >= --duracion: break
+# al salir del with: M,0,0
+\end{verbatim}
+\end{column}
+\begin{column}{0.45\textwidth}
+\footnotesize
+\begin{tabular}{L{2.1cm}L{3.9cm}}
+  \toprule
+  \textbf{Opción} & \textbf{Qué hace} \\
+  \midrule
+  \verb|--duracion N| & Para solo a los N segundos. \textbf{Siempre ponerla.} \\
+  \verb|--espera N| & Segundos antes de arrancar \\
+  \verb|--simular| & No habla con el ESP32 \\
+  \verb|--silencioso| & Una línea cada 10 ciclos \\
+  \verb|--nota "..."| & Qué escenario es; va al JSON \\
+  \verb|--grabar| & Video anotado (baja $\sim$1 FPS) \\
+  \verb|--sin-registro| & No escribe el CSV \\
+  \verb|--tam N| & Otro tamaño de inferencia \\
+  \verb|--puerto P| & Otro puerto serie \\
+  \verb|--preview| & Ventana (no sirve por SSH) \\
+  \bottomrule
+\end{tabular}
+
+\vspace{0.3em}
+Ctrl+C no mata el proceso: baja una bandera y el lazo sale por su camino
+normal, que es el que frena.
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{\cod{registro.py} --- lo que queda de cada corrida}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.56\textwidth}
+      \begin{tabular}{L{2.9cm}L{4.7cm}}
+        \toprule
+        \textbf{Columna del CSV} & \textbf{Qué guarda} \\
+        \midrule
+        \cod{t_s}, \cod{dt_ms} & Tiempo desde el arranque y duración del ciclo \\
+        \cod{estado}, \cod{fase_huir} & Estado de la máquina \\
+        \cod{v_lin}, \cod{v_ang}, \cod{buzzer} & El comando enviado \\
+        \cod{confirmadas} & Clases confirmadas, separadas por barra \\
+        \cod{n_det} & Cuántas cajas hubo en el frame \\
+        \cod{franjas} & Salud de la imagen (0 es sana) \\
+        \cod{obj_conf/ex/ar/w/h} & La mejor caja \textbf{cruda} del oso \\
+        \cod{amz_conf/ex/ar} & La mejor caja cruda de la mochila \\
+        \cod{dist_cm} & Ultrasónico (vacío: sin lectura) \\
+        \cod{motivo} & Por qué se mandó ese comando \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+      \begin{block}{Dos archivos por corrida}
+        \cod{corrida_AAAAMMDD_HHMMSS.csv} con una fila por ciclo, y un
+        \cod{.json} con \textbf{los parámetros de esa corrida} y la nota. Un
+        CSV sin sus parámetros es un número sin contexto.
+      \end{block}
+      \begin{block}{Y el video}
+        Con \cod{--grabar}, un \cod{.avi} con el frame anotado de cada ciclo:
+        el frame $k$ del video es la fila $k$ del CSV.
+      \end{block}
+      \begin{block}{Por qué la caja cruda}
+        Guardar la caja confirmada \emph{o no} permite medir cuánto tardó la
+        confirmación desde el primer avistamiento.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{\cod{analizar_corrida.py} --- del CSV a las métricas}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Qué informa de una corrida}
+        \begin{itemize}
+          \item \textbf{Lazo}: FPS, y duración del ciclo (mediana, percentil
+                95 y máximo).
+          \item \textbf{Imagen}: frames con franjas; avisa ``cámara a ciegas''
+                si más del 20 \% están muy dañados.
+          \item \textbf{Estados}: tiempo en cada uno y cada transición.
+          \item \textbf{Buscar}: cuánto tardó en confirmar desde que lo vio, y
+                si el oso seguía en la imagen medio segundo después.
+          \item \textbf{Aproximar}: error lateral (RMS y máximo), cruces de
+                lado y pérdidas del objetivo.
+          \item \textbf{Encontrado}: con qué área frenó y con cuál quedó.
+          \item \textbf{Huir}: latencia de reacción y frames con mochila.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{Con varias corridas}
+        \cod{python analizar_corrida.py logs/corrida_*.csv} arma una tabla con
+        una línea por corrida y el resumen: cuántas llegaron a
+        \cod{ENCONTRADO} y el tiempo medio. Es la herramienta para las 10
+        corridas por escenario.
+      \end{block}
+      \begin{alertblock}{Lo que el CSV no puede decir}
+        La distancia \textbf{real} a la que frenó, si chocó, y cuánto giró de
+        verdad. El registro sabe qué pidió el Pi y qué vio la cámara; no sabe
+        dónde quedó el robot. Eso se anota a mano, con cinta métrica.
+      \end{alertblock}
+      \begin{block}{Dependencias}
+        Sólo la biblioteca estándar: corre igual en el Pi y en la PC.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{\cod{prueba_estados.py} --- 79 verificaciones sin robot}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.52\textwidth}
+      \begin{tabular}{L{0.4cm}L{6.5cm}}
+        \toprule
+        & \textbf{Qué verifica cada grupo} \\
+        \midrule
+        1 & \cod{BUSCAR}: barre, se reubica, alterna mirar y girar \\
+        2 & \cod{APROXIMAR}: frena al acercarse, gira al lado correcto, llega \\
+        3 & Pérdida del objetivo, y que lo busca por donde lo vio \\
+        4 & \cod{HUIR} tiene prioridad sobre todo \\
+        5 & Las tres fases de \cod{HUIR}, en orden y sin reevaluar \\
+        6 & El período sordo después de huir \\
+        7 & El ultrasónico: obstáculo propio contra ajeno \\
+        8 & Frenar el barrido al primer avistamiento \\
+        9 & Todo lo que sale entra en el protocolo \\
+        \bottomrule
+      \end{tabular}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \begin{block}{Cómo funciona}
+        Una clase \cod{Escenario} corre la máquina con un \textbf{reloj
+        simulado} y detecciones inventadas, y junta los comandos que fueron
+        saliendo. Corre en un segundo, en cualquier máquina.
+      \end{block}
+      \begin{block}{Para qué sirvió}
+        Encontró, antes de que hubiera ruedas girando, que las huidas se
+        reencadenaban solas. Y \cod{demo.sh chequeo} la corre antes de cada
+        demo.
+      \end{block}
+      \begin{alertblock}{Lo que no garantiza}
+        Que la decisión verificada sea \emph{buena}. Una de estas
+        verificaciones exigía, hasta el 1 de octubre, justo lo que hacía que
+        el robot no huyera.
+      \end{alertblock}
+    \end{column}
+  \end{columns}}
+\end{frame}
+
+\begin{frame}{\cod{simular_piso.py} y \cod{bench_vision.py}}
+  \relax{\footnotesize
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.485\textwidth}
+      \begin{block}{\cod{simular_piso.py}: predecir antes de soltar el robot}
+        Corre la \textbf{máquina y el confirmador reales} contra un robot
+        diferencial simulado. Lo que se simula es el mundo; lo que decide es
+        el mismo código del Pi.
+        \begin{itemize}
+          \item \textbf{Medido}: calibración de motores, FPS, edad del frame,
+                alcance.
+          \item \textbf{Estimado}: trocha, campo visual.
+          \item \textbf{Supuesto}: inercia, probabilidad de detección.
+        \end{itemize}
+        Predijo que el barrido de corrido iba a fallar si la imagen se movía.
+        Sirve para comparar variantes, no para creerle los números absolutos.
+      \end{block}
+    \end{column}
+    \begin{column}{0.485\textwidth}
+      \begin{block}{\cod{bench_vision.py}: cuánto rinde la visión}
+        Mide el FPS real de cámara más red, barriendo tamaños de inferencia y
+        separando captura, inferencia y posproceso.
+        \begin{itemize}
+          \item Sin argumentos: el barrido, con resultados en \cod{logs/}.
+          \item \cod{--en-vivo}: imprime lo que detecta frame a frame y
+                guarda la foto anotada en \cod{logs/vivo.jpg}. Es lo que usa
+                \cod{demo.sh ver}.
+          \item Tiene una cámara sintética para medir sin cámara conectada.
+        \end{itemize}
+        De acá salió \cod{TAM_INFERENCIA = 320}.
+      \end{block}
+    \end{column}
+  \end{columns}}
+\end{frame}
