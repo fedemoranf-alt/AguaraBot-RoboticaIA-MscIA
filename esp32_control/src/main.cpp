@@ -18,8 +18,9 @@
  *   ESP32 -> Pi (a 20 Hz):
  *     D,<dist_cm>,<enc_izq>,<enc_der>
  *
- *   dist_cm = -1 significa "sin lectura valida" (fuera de rango o
- *   sensor no conectado). Los encoders son extension opcional
+ *   dist_cm = -1 significa "sin lectura valida": el sensor no contesto
+ *   (desconectado). Ojo: con el PING))) "nada adelante" NO da -1 sino
+ *   ~370, su pulso mas largo. Los encoders son extension opcional
  *   (PLAN.md seccion 5, D5): mientras no esten cableados se emite 0,0.
  *
  *   Las lineas que empiezan con '#' son mensajes de diagnostico para
@@ -50,6 +51,8 @@
  */
 
 #include <Arduino.h>
+#include "driver/gpio.h"
+#include "driver/rtc_io.h"
 
 /* ==================================================================
  * 1. Pines
@@ -66,17 +69,46 @@
 #define PIN_IN3 33 /* direccion canal B */
 #define PIN_IN4 32 /* direccion canal B */
 
-/* Ultrasonico HC-SR04 - HARDWARE.md seccion 9.
+/* Ultrasonico Parallax PING))) (#28015), de TRES pines: GND, 5 V y SIG.
+ * HARDWARE.md seccion 9.
  *
- * OJO: el pin ECHO del HC-SR04 entrega 5 V y el ESP32 NO tolera 5 V en
- * un GPIO. Va con divisor resistivo 1k / 2k (5 V -> 3,3 V). Sin el
- * divisor se dania el pin. TRIG si acepta 3,3 V directo: el umbral de
- * entrada del HC-SR04 es TTL. */
-#define PIN_TRIG 18
-#define PIN_ECHO 19
+ * A diferencia del HC-SR04, el disparo y el eco van por el MISMO pin:
+ * el ESP32 lo maneja como salida para el pulso de disparo y enseguida
+ * lo pasa a entrada para medir el eco.
+ *
+ * OJO: el PING))) se alimenta a 5 V y devuelve el eco a 5 V, y el ESP32
+ * NO tolera 5 V en un GPIO. SIG va con divisor resistivo:
+ *
+ *     SIG --[1k]--+-- GPIO 12
+ *                 |
+ *                [2k]
+ *                 |
+ *                GND
+ *
+ * Hacia el ESP32 el divisor baja 5 V a 3,3 V. Hacia el sensor el disparo
+ * llega a 3,3 V a traves de la de 1k, que alcanza: la entrada es TTL.
+ * Sin el divisor se dania el pin.
+ *
+ * Por que el 12: en la protoboard el 19 (el previsto) no queda
+ * accesible. OJO, el 12 es un pin de ARRANQUE (MTDI): si esta en alto
+ * en el instante en que el ESP32 sale del reset, el modulo alimenta la
+ * flash a 1,8 V y no arranca. En reposo la de 2k lo tiene en bajo, pero
+ * un eco en curso lo tiene en alto. Ver HARDWARE.md seccion 9.
+ *
+ * Los GPIO 18 y 19 (TRIG y ECHO del HC-SR04 con el que se escribio
+ * esto) quedan libres. */
+#define PIN_SONAR 12
 
-/* Buzzer - HARDWARE.md seccion 9. */
-#define PIN_BUZZER 4
+/* Buzzer - HARDWARE.md seccion 9.
+ *
+ * En el 14 y no en el 4 (el previsto): en la protoboard solo queda
+ * accesible una fila del ESP32, y de esa fila el 14 es el unico pin
+ * libre que puede ser SALIDA. Los 34, 35, 36 y 39 son de solo entrada:
+ * un buzzer colgado del 35 no suena nunca.
+ *
+ * El 14 saca una senial PWM unos milisegundos al arrancar (es asi de
+ * fabrica): el buzzer puede dar un chasquido al encender. Es inofensivo. */
+#define PIN_BUZZER 14
 
 /* Reservados para los encoders (extension opcional, PLAN.md D5).
  * Los cuatro son pines de solo entrada, que es justo lo que hace falta,
@@ -271,8 +303,8 @@
 #define WD_BRAKE_MS 200        /* freno activo antes de soltar a coast */
 #define CONTROL_PERIOD_MS 10   /* 100 Hz */
 #define TELEMETRY_PERIOD_MS 50 /* 20 Hz - PLAN.md seccion 8 */
-#define PING_PERIOD_MS 60      /* HC-SR04: minimo 60 ms entre disparos */
-#define ECHO_TIMEOUT_US 30000  /* ~5 m; el sensor llega a 4 */
+#define PING_PERIOD_MS 60      /* el eco dura 18,5 ms como mucho: sobra */
+#define ECHO_TIMEOUT_US 30000  /* mas largo que el eco mas largo del PING))) */
 
 /* ==================================================================
  * 4. Estado global
@@ -336,6 +368,15 @@ static uint32_t g_window_end_ms = 0;
 static volatile uint32_t g_echo_rise_us = 0;
 static volatile uint32_t g_echo_width_us = 0;
 static volatile bool g_echo_ready = false;
+static volatile bool g_echo_armed = false; /* la ISR solo mira con esto */
+static volatile bool g_echo_high = false;  /* ya vio el flanco de subida */
+/* Contadores de diagnostico (tecla 'e'). Separan "el eco no llega al pin"
+ * (flancos en cero) de "llega y no se lo toma" (flancos si, ecos no). */
+static volatile uint32_t g_sonar_isr = 0;   /* entradas a la ISR, todas */
+static volatile uint32_t g_sonar_edges = 0; /* flancos con la ISR armada */
+static volatile uint32_t g_sonar_echoes = 0; /* pulsos de eco completos */
+static uint32_t g_sonar_pings = 0;          /* disparos enviados */
+static bool g_sonar_hold = false;           /* tecla 'U': linea en alto fijo */
 static uint32_t g_ping_sent_ms = 0;
 static bool g_ping_pending = false;
 static int g_distance_cm = -1;
@@ -390,7 +431,10 @@ static void pwm_set_freq(uint8_t pin, uint8_t channel, uint32_t freq)
 #endif
 }
 
-static void tone_write(uint8_t pin, uint8_t channel, uint32_t freq)
+/* Solo la usa el buzzer PASIVO (BUZZER_PASSIVE en 1); con el activo
+ * queda sin llamar, y el atributo calla el aviso del compilador. */
+static void __attribute__((unused)) tone_write(uint8_t pin, uint8_t channel,
+                                               uint32_t freq)
 {
 #if defined(ESP_ARDUINO_VERSION_MAJOR) && (ESP_ARDUINO_VERSION_MAJOR >= 3)
     (void)channel;
@@ -581,30 +625,68 @@ static void mix(int v_lin, int v_ang, int *left, int *right)
 }
 
 /* ==================================================================
- * 7. Ultrasonico HC-SR04 - no bloqueante
+ * 7. Ultrasonico Parallax PING))) - no bloqueante, un solo pin
  *
  * Un pulseIn() con timeout de 30 ms bloquearia el lazo de control, que
- * corre a 100 Hz. En vez de eso se dispara el TRIG y se mide el ancho
- * del ECHO por interrupcion; el resultado se recoge en el lazo.
+ * corre a 100 Hz. En vez de eso se dispara y se mide el ancho del eco
+ * por interrupcion; el resultado se recoge en el lazo.
+ *
+ * Tiempos del PING))) (hoja de datos): disparo de 2 us minimo (5 us
+ * tipico); el sensor espera 750 us y recien entonces levanta SIG; el
+ * pulso de eco dura entre 115 us y 18,5 ms. Esos 750 us son los que dan
+ * tiempo a pasar el pin de salida a entrada.
+ *
+ * Se cambia la direccion con gpio_set_direction() y no con pinMode():
+ * toca solo la direccion, y deja como estaban el pulldown y la
+ * interrupcion que se configuraron en setup().
  * ================================================================== */
 static void IRAM_ATTR echo_isr(void)
 {
-    if (digitalRead(PIN_ECHO)) {
+    /* Fuera de la ventana de escucha no se mira nada: asi el pulso de
+     * disparo, que sale por este mismo pin, nunca se toma por un eco. */
+    g_sonar_isr++;
+    if (!g_echo_armed) {
+        return;
+    }
+    g_sonar_edges++;
+
+    if (digitalRead(PIN_SONAR)) {
         g_echo_rise_us = micros();
-    } else {
+        g_echo_high = true;
+    } else if (g_echo_high) {
         g_echo_width_us = micros() - g_echo_rise_us;
+        g_echo_high = false;
         g_echo_ready = true;
+        g_echo_armed = false;
+        g_sonar_echoes++;
     }
 }
 
 static void ping_send(void)
 {
+    if (g_sonar_hold) {
+        g_distance_cm = -1;
+        return;
+    }
+
+    g_echo_armed = false;
     g_echo_ready = false;
-    digitalWrite(PIN_TRIG, LOW);
-    delayMicroseconds(4);
-    digitalWrite(PIN_TRIG, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(PIN_TRIG, LOW);
+    g_echo_high = false;
+
+    /* INPUT_OUTPUT y no OUTPUT a secas: la entrada queda habilitada y la
+     * ISR ve tambien el propio disparo (lo descarta, no esta armada). Eso
+     * da un autotest gratis: si 'isr' no sube de a dos por disparo, lo
+     * roto es la interrupcion y no el sensor. */
+    gpio_set_direction((gpio_num_t)PIN_SONAR, GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_level((gpio_num_t)PIN_SONAR, 0);
+    delayMicroseconds(2);
+    gpio_set_level((gpio_num_t)PIN_SONAR, 1);
+    delayMicroseconds(5);
+    gpio_set_level((gpio_num_t)PIN_SONAR, 0);
+    gpio_set_direction((gpio_num_t)PIN_SONAR, GPIO_MODE_INPUT);
+
+    g_echo_armed = true;
+    g_sonar_pings++;
 
     g_ping_sent_ms = millis();
     g_ping_pending = true;
@@ -647,10 +729,12 @@ static void ping_poll(void)
  * Patron 1 = hallazgo (tono largo, una vez).
  * Patron 2 = alarma (intermitente, hasta que llegue B,0).
  *
- * Escrito para buzzer PASIVO (hay que generarle el tono). Si el buzzer
- * es ACTIVO (suena solo con nivel alto), poner BUZZER_PASSIVE en 0.
+ * El del robot es ACTIVO, de dos patas (suena solo con nivel alto):
+ * BUZZER_PASSIVE en 0. Con uno PASIVO (hay que generarle el tono) va en
+ * 1, y ahi cuentan las dos frecuencias de abajo; con el activo el tono
+ * es el suyo y lo unico que se elige es el ritmo.
  * ================================================================== */
-#define BUZZER_PASSIVE 1
+#define BUZZER_PASSIVE 0
 #define BUZZ_FREQ_FOUND 2000
 #define BUZZ_FREQ_ALARM 3000
 #define BUZZ_FOUND_MS 1200
@@ -721,6 +805,8 @@ static void print_help(void)
     Serial.println("#   f       ciclar PWM: 1000/500/200/100 Hz");
     Serial.println("#   t       telemetria on/off (para poder leer)");
     Serial.println("#   e       mostrar parametros");
+    Serial.println("#   u       ultrasonico: un disparo y la linea con el ADC");
+    Serial.println("#   U       ultrasonico: linea en alto fijo, para el tester");
     Serial.println("#   p       volver a modo protocolo (watchdog ON)");
     Serial.println("#   ?       esta ayuda");
     Serial.println("# Cualquier comando M,... tambien vuelve a protocolo.");
@@ -748,7 +834,90 @@ static void print_params(void)
                   PWM_BREAKAWAY_LEFT, PWM_BREAKAWAY_RIGHT, BREAKAWAY_MS);
     Serial.printf("# vel. manual  : %d %%\n", g_manual_speed);
     Serial.printf("# distancia    : %d cm\n", g_distance_cm);
+    Serial.printf("# sonar GPIO %d: %lu disparos, %lu isr, %lu flancos, "
+                  "%lu ecos, nivel ahora %d\n",
+                  PIN_SONAR, (unsigned long)g_sonar_pings,
+                  (unsigned long)g_sonar_isr, (unsigned long)g_sonar_edges,
+                  (unsigned long)g_sonar_echoes, digitalRead(PIN_SONAR));
+
+    /* Hay algo colgado del pin? Con el pull-up interno (~45k) puesto, la
+     * de 2k a GND del divisor lo deja en 0; con el pin al aire lee 1.
+     * Cuesta una lectura (desarma la ISR), que el proximo disparo repone. */
+    if (g_sonar_hold) {
+        Serial.println("# sonar cableado: linea EN ALTO FIJO (tecla 'U'), "
+                       "sin disparos");
+    } else {
+        g_echo_armed = false;
+        gpio_set_pull_mode((gpio_num_t)PIN_SONAR, GPIO_PULLUP_ONLY);
+        delay(2);
+        int con_pullup = digitalRead(PIN_SONAR);
+        gpio_set_pull_mode((gpio_num_t)PIN_SONAR, GPIO_PULLDOWN_ONLY);
+        Serial.printf("# sonar cableado: con pull-up lee %d (%s)\n",
+                      con_pullup,
+                      con_pullup
+                          ? "pin AL AIRE: el divisor no esta en este pin"
+                          : "hay camino a GND: el divisor esta");
+    }
     Serial.println();
+}
+
+/* Diagnostico del ultrasonico (tecla 'u'): un disparo, y despues la linea
+ * mirada con el ADC durante 25 ms, mas que el eco mas largo.
+ *
+ * La entrada digital solo dice 0 o 1, y un eco que llega a media altura
+ * (divisor con las resistencias cruzadas: 1,7 V en vez de 3,3 V) se lee
+ * como 0, igual que un sensor mudo. El ADC los distingue.
+ *
+ * Bloquea el lazo 25 ms: es para banco, no para usar andando. */
+static void sonar_diag(uint32_t pulso_us)
+{
+    const int umbral = 300; /* de 4095: ~0,25 V */
+    uint32_t t0, t, primero = 0, ultimo = 0;
+    int v, maximo = 0, n = 0, altos = 0;
+
+    g_echo_armed = false;
+    detachInterrupt(digitalPinToInterrupt(PIN_SONAR));
+
+    gpio_set_direction((gpio_num_t)PIN_SONAR, GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_level((gpio_num_t)PIN_SONAR, 0);
+    delayMicroseconds(2);
+    gpio_set_level((gpio_num_t)PIN_SONAR, 1);
+    delayMicroseconds(pulso_us);
+    gpio_set_level((gpio_num_t)PIN_SONAR, 0);
+    gpio_set_direction((gpio_num_t)PIN_SONAR, GPIO_MODE_INPUT);
+    t0 = micros();
+
+    while ((t = micros() - t0) < 25000) {
+        v = analogRead(PIN_SONAR);
+        n++;
+        if (v > maximo) {
+            maximo = v;
+        }
+        if (v > umbral) {
+            if (altos == 0) {
+                primero = t;
+            }
+            ultimo = t;
+            altos++;
+        }
+    }
+
+    /* analogRead() deja el pin en modo analogico (RTC): hay que
+     * devolverlo a digital y volver a colgar la interrupcion. */
+    rtc_gpio_deinit((gpio_num_t)PIN_SONAR);
+    pinMode(PIN_SONAR, INPUT_PULLDOWN);
+    attachInterrupt(digitalPinToInterrupt(PIN_SONAR), echo_isr, CHANGE);
+
+    Serial.printf("# sonar diag, disparo de %lu us: %d muestras, maximo "
+                  "%d/4095 (~%.2f V), %d por encima de %d",
+                  (unsigned long)pulso_us, n, maximo,
+                  maximo * 3.3f / 4095.0f, altos, umbral);
+    if (altos > 0) {
+        Serial.printf(", entre %lu y %lu us del disparo\n",
+                      (unsigned long)primero, (unsigned long)ultimo);
+    } else {
+        Serial.printf(": la linea no se movio\n");
+    }
 }
 
 static void manual_enter(void)
@@ -846,6 +1015,34 @@ static void manual_command(char c)
         break;
     case 'e':
         print_params();
+        break;
+    case 'u':
+        /* Varios anchos de disparo: si el sensor contesta a uno largo y
+         * no al de 5 us, lo que falla es el ancho y no el cableado. */
+        sonar_diag(5);
+        delay(60);
+        sonar_diag(20);
+        delay(60);
+        sonar_diag(100);
+        delay(60);
+        sonar_diag(1000);
+        break;
+    case 'U':
+        /* Linea en alto FIJO, sin disparos, para medirla con el tester en
+         * el pin SIG del sensor: tiene que dar ~3,3 V. Otra 'U' la suelta. */
+        g_sonar_hold = !g_sonar_hold;
+        g_echo_armed = false;
+        if (g_sonar_hold) {
+            gpio_set_direction((gpio_num_t)PIN_SONAR, GPIO_MODE_INPUT_OUTPUT);
+            gpio_set_level((gpio_num_t)PIN_SONAR, 1);
+        } else {
+            gpio_set_level((gpio_num_t)PIN_SONAR, 0);
+            gpio_set_direction((gpio_num_t)PIN_SONAR, GPIO_MODE_INPUT);
+        }
+        Serial.printf("# sonar: linea %s (nivel leido %d)\n",
+                      g_sonar_hold ? "EN ALTO FIJO, sin disparos"
+                                   : "suelta, vuelven los disparos",
+                      digitalRead(PIN_SONAR));
         break;
     case 'p':
         g_manual = false;
@@ -1286,14 +1483,12 @@ void setup(void)
     pwm_init(PIN_RIGHT_PWM, PWM_CH_RIGHT, g_pwm_freq);
     wheels_coast();
 
-    pinMode(PIN_TRIG, OUTPUT);
-    digitalWrite(PIN_TRIG, LOW);
     /* Pulldown interno: sin el sensor conectado el pin quedaria flotando y
      * la ISR dispararia con cualquier ruido. Con el divisor puesto el
      * pulldown (~45k) queda en paralelo con R2 (2k) y casi no lo corre:
      * la entrada pasa de 3,33 a 3,28 V. */
-    pinMode(PIN_ECHO, INPUT_PULLDOWN);
-    attachInterrupt(digitalPinToInterrupt(PIN_ECHO), echo_isr, CHANGE);
+    pinMode(PIN_SONAR, INPUT_PULLDOWN);
+    attachInterrupt(digitalPinToInterrupt(PIN_SONAR), echo_isr, CHANGE);
 
 #if BUZZER_PASSIVE
     pwm_init(PIN_BUZZER, PWM_CH_BUZZER, 2000);
